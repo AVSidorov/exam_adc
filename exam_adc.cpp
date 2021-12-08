@@ -164,6 +164,8 @@ int BRDC_main( int argc, BRDCHAR *argv[] )
 		return -1;
 	}
 
+    BRDC_printf( _BRDC("Sid edition.\n\n"));
+
 	// получить список LID (каждая запись соответствует устройству)
 	BRD_LidList lidList;
 	lidList.item = MAX_DEV; // считаем, что устройств может быть не больше MAX_DEV
@@ -695,7 +697,7 @@ S32 SetParamSrv(BRD_Handle handle, BRD_ServList* srv, int idx)
 				g_MemAsFifo = 1;
 			}
 			else
-				BRDC_printf(_BRDC("Samples of channel = %lld\n"), g_memorySamplesOfChannel);
+				BRDC_printf(_BRDC("Samples of channel from buf size = %lld\n"), g_memorySamplesOfChannel);
 
 		}
 		else
@@ -791,7 +793,12 @@ S32 GetAdcData(BRD_Handle hADC, unsigned long long bBufSize, unsigned long long 
 		if(!g_Cycle)
 			BRDC_printf(_BRDC("AllocDaqBuf (memory type = %d)\n"), g_IsSysMem);
 		//status = AllocDaqBuf(hADC, &pSig, &bBufSize, g_IsSysMem);
+	    BRDC_printf(_BRDC("bufSize before  allocation %llu\n"), bBufSize);
 		status = AllocDaqBuf(hADC, pSig, &bBufSize, g_IsSysMem, &g_bBlkNum);
+		BRDC_printf(_BRDC("bufSize after  allocation %llu\n"), bBufSize);
+        bMemBufSize = bBufSize;
+        bBufSize = bMemBufSize / g_bBlkNum;
+        BRDC_printf(_BRDC("set bufSize %llu after allocation %llu blocks\n"), bBufSize, g_bBlkNum);
 		if(!BRD_errcmp(status, BRDerr_OK))
 			return status;
 		if(!pSig)
@@ -1028,11 +1035,10 @@ S32 GetAdcData(BRD_Handle hADC, unsigned long long bBufSize, unsigned long long 
 #endif
 		}while(loop);
 	}
-	if(g_DmaOn)
-		status = FreeDaqBuf(hADC, g_bBlkNum);
-	else
-		delete pSigNonDMA;
-
+		if(g_DmaOn)
+			status = FreeDaqBuf(hADC, g_bBlkNum);
+		else
+			delete pSigNonDMA;
 	return status;
 }
 
@@ -1070,6 +1076,8 @@ S32	DataFromMemWriteFile(BRD_Handle hADC, PVOID* pBuf, unsigned long long bBufSi
 	int nCnt = int(bMemBufSize / bBufSize);
 	for(int iCnt = 0; iCnt < nCnt; iCnt++)
 	{
+		BRDC_printf(_BRDC("step %i from %i\n"), iCnt,nCnt);
+		BRDC_printf(_BRDC("Get from 0x%X %lu bytes\n"),pBuf,bBufSize);
 		status = DataFromMem(hADC, *pBuf, (ULONG)bBufSize, DmaOn);
 		if (!BRD_errcmp(status, BRDerr_OK))
 			return status;
