@@ -27,7 +27,7 @@ set(HEADERS adc_ctrl.h
             mu_ctrl.h)
 
 # add precompiled library
-find_library(brd  NAMES libbrd.so
+find_library(brd  NAMES libbrd.so libbrd
 		PATHS ${BARDYLIB} ${BARDYDIR}
 		PATH_SUFFIXES bin lib
 		REQUIRED)
