@@ -388,7 +388,7 @@ S32 DataFromMem(BRD_Handle hADC, PVOID pBuf, ULONG bBufSize, ULONG DmaOn)
 			DisplayError(status, __FUNCTION__, _BRDC("BRDctrl_STREAM_CBUF_START"));
 		else
 		{
-			ULONG msTimeout = 5000; // ждать окончания передачи данных до 5 сек.
+			ULONG msTimeout = 120000; // ждать окончания передачи данных до 5 сек.
 			status = BRD_ctrl(hADC, 0, BRDctrl_STREAM_CBUF_WAITBUF, &msTimeout);
 			if(BRD_errcmp(status, BRDerr_WAIT_TIMEOUT))
 			{	// если вышли по тайм-ауту, то остановимся
