@@ -148,7 +148,7 @@ unsigned __stdcall ThreadDaqIntoSdramDMA(void* pParams)
 
 	// дожидаемся окончания сбора
 	BRD_WaitEvent waitEvt;
-	waitEvt.timeout = g_MsTimeout; // ждать окончания сбора данных до g_MsTimeout мсек.
+	waitEvt.timeout = 6*g_MsTimeout; // ждать окончания сбора данных до g_MsTimeout мсек.
 	waitEvt.hAppEvent = g_hUserEvent;
 	status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_WAITACQCOMPLETEEX, &waitEvt);
 	QueryPerformanceCounter (&StopPerformCount);
@@ -311,7 +311,7 @@ S32 DaqIntoSdramDMA(BRD_Handle hADC)
 	if(!BRD_errcmp(status, BRDerr_OK))
 		DisplayError(status, __FUNCTION__, _BRDC("BRDctrl_ADC_ENABLE"));
 
-	ULONG cntTimeout = g_MsTimeout / 50;
+	ULONG cntTimeout = 6*g_MsTimeout / 50;
 	evt_status = BRDerr_WAIT_TIMEOUT;
 	// дожидаемся окончания сбора
 	for(ULONG i = 0; i < cntTimeout; i++)
@@ -335,7 +335,7 @@ S32 DaqIntoSdramDMA(BRD_Handle hADC)
 		status = BRD_ctrl(hADC, 0, BRDctrl_ADC_FIFOSTATUS, &AdcStatus);
 		status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_FIFOSTATUS, &SdramStatus);
 		BRDC_printf(_BRDC("\nBRDctrl_SDRAM_ISACQCOMPLETE is TIME-OUT(%d sec.)\n    AdcFifoStatus = %08X SdramFifoStatus = %08X\n"),
-			g_MsTimeout / 1000, AdcStatus, SdramStatus);
+			6*g_MsTimeout / 1000, AdcStatus, SdramStatus);
 		//return evt_status;
 	}
 
@@ -388,7 +388,7 @@ S32 DataFromMem(BRD_Handle hADC, PVOID pBuf, ULONG bBufSize, ULONG DmaOn)
 			DisplayError(status, __FUNCTION__, _BRDC("BRDctrl_STREAM_CBUF_START"));
 		else
 		{
-			ULONG msTimeout = 120000; // ждать окончания передачи данных до 5 сек.
+			ULONG msTimeout = 6*g_MsTimeout; // ждать окончания передачи данных до 5 сек.
 			status = BRD_ctrl(hADC, 0, BRDctrl_STREAM_CBUF_WAITBUF, &msTimeout);
 			if(BRD_errcmp(status, BRDerr_WAIT_TIMEOUT))
 			{	// если вышли по тайм-ауту, то остановимся
