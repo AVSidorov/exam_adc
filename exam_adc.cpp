@@ -858,7 +858,39 @@ S32 GetAdcData(BRD_Handle hADC, unsigned long long bBufSize, unsigned long long 
 			if(g_MemOn)
 			{ // сбор в память и ПДП-передача данных
 				BRDC_printf(_BRDC("DAQ into SDRAM\n"));
+
+#ifdef _WIN32
+				StartDaqIntoSdramDMA(hADC, 1); // запускаем поток ожидающий окончание сбора данных
+				BRDC_printf(_BRDC("For end of waiting press ESC\n"));
+				// Запускаем цикл, пока не закончится поток.
+				while (CheckDaqIntoSdramDMA())
+				{
+					//Проверяем нажатие клавиши
+#if defined(__IPC_WIN__) || defined(__IPC_LINUX__)
+					if(IPC_kbhit())
+					{
+						int ch = IPC_getch();
+#else
+					if(_kbhit())
+					{
+						int ch = _getch();
+#endif
+						if(0x1B == ch) // если Esc
+						{
+							BreakDaqIntoSdramDMA(); //прерываем поток
+							break; // выходим из цикла
+						}
+#if defined(__IPC_WIN__) || defined(__IPC_LINUX__)
+					}
+#else
+					}
+#endif
+				}
+				// По завершению треда "выключаем" АЦП
+				status = EndDaqIntoSdramDMA()
+#else
 				status = DaqIntoSdramDMA(hADC); // выполнить сбор данных
+#endif
 				if(status != -1)
 					status = DataFromMemWriteFile(hADC, pSig, bBufSize, bMemBufSize, g_DmaOn); // передать данные из памяти в ОЗУ ПК, а затем в файл
 			}
