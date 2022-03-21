@@ -870,14 +870,14 @@ S32 GetAdcData(BRD_Handle hADC, unsigned long long bBufSize, unsigned long long 
 			}
 		}
 
-			if(g_IsWriteFile || g_fileMap)
-			{
-				int rd_fl = ReadFlagSinc(0);
-				if(rd_fl == 1)
-					WriteFlagSinc(1, newParam_fl, 0);
-				else
-					WriteFlagSinc(0xffffffff, newParam_fl, 0);
-			}
+		if(g_IsWriteFile || g_fileMap)
+		{
+			int rd_fl = ReadFlagSinc(0);
+			if(rd_fl == 1)
+				WriteFlagSinc(1, newParam_fl, 0);
+			else
+				WriteFlagSinc(0xffffffff, newParam_fl, 0);
+		}
 
 	}
 	else
@@ -987,15 +987,21 @@ S32 GetAdcData(BRD_Handle hADC, unsigned long long bBufSize, unsigned long long 
 					{
 						int ch = _getch();
 #endif
-						if(0x1B == ch) 
+						if(0x1B == ch) // если Esc
 							loop = 0;
-						if(0x20 == ch)
+						if(0x20 == ch) // если Space
 						{
 							status = AdcSettings(hADC, 0, g_AdcSrvNum, g_SrvName, g_iniFileName); // установить параметры АЦП
 							status = BRD_ctrl(hADC, 0, BRDctrl_ADC_PREPARESTART, NULL);
 							newParam_fl = 0xffffffff;
 						}
+// Hear doubled closing bracket } for correct code folding
+#if defined(__IPC_WIN__) || defined(__IPC_LINUX__)
 					}
+#else
+					}
+#endif
+
 #if defined(__IPC_LINUX__)
 					if((rd_fl == 0) || g_StopFlag)
 #else
