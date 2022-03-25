@@ -53,6 +53,8 @@ set_property(TARGET libgipcy PROPERTY
 
 target_include_directories(libgipcy INTERFACE  "${GIPCYINC}")
 
+set(THREADS_PREFER_PTHREAD_FLAG ON)
+find_package(Threads REQUIRED)
 
 # change output directory for executable
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/${CMAKE_SYSTEM_NAME}/${CMAKE_SYSTEM_PROCESSOR}/bin)
@@ -60,6 +62,6 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/${CMA
 # add the executable
 add_executable(${PROJECT_NAME} ${SOURCE_FILES} ${HEADERS})
 target_link_libraries(${PROJECT_NAME} PRIVATE libbrd
-                                              libgipcy)
-
+                                              libgipcy
+											  Threads::Threads)
 

@@ -2,7 +2,9 @@
 #include	"adc_ctrl.h"
 
 #if defined(__IPC_WIN__) || defined(__IPC_LINUX__)
- #include	"gipcy.h"
+#include	"gipcy.h"
+#include <pthread.h>
+#include <unistd.h>
 #endif
 
 #ifdef _WIN32
@@ -106,33 +108,50 @@ S32 DaqIntoSdram(BRD_Handle hADC)
 
 ULONG evt_status = BRDerr_OK;
 
-#ifdef _WIN32
+
 
 typedef struct _THREAD_PARAM {
 	BRD_Handle handle;
 	int idx;
 } THREAD_PARAM, *PTHREAD_PARAM;
 
+THREAD_PARAM thread_par; // struct for data exchange cross threads
+
+#ifdef _WIN32
 HANDLE g_hThread = NULL;
-THREAD_PARAM thread_par;
 HANDLE g_hUserEvent = NULL;
+#else
+pthread_t thread;
+pthread_mutex_t mutex;
+int iret;
+#endif
+
 // выполнить сбор данных в SDRAM с ПДП-методом передачи в ПК
 // с использованием прерывания по окончанию сбора
+#ifdef _WIN32
 unsigned __stdcall ThreadDaqIntoSdramDMA(void* pParams)
+#else
+void *ThreadDaqIntoSdramDMA(void *pParams)
+#endif
 {
 	S32		status;
 	ULONG AdcStatus = 0;
 	ULONG Status = 0;
 	ULONG isAcqComplete = 0;
+	ULONG acq_size;
+
 	evt_status = BRDerr_OK;
+	#ifdef _WIN32
 	SetThreadPriority(GetCurrentThread(), THREAD_PRIORITY_HIGHEST);
+	#endif
 	PTHREAD_PARAM pThreadParam = (PTHREAD_PARAM)pParams;
 	BRD_Handle hADC = pThreadParam->handle;
-	int idx = pThreadParam->idx;
-
+	
 	// определение скорости сбора данных
+#if _WIN32
 	LARGE_INTEGER Frequency, StartPerformCount, StopPerformCount;
 	int bHighRes = QueryPerformanceFrequency (&Frequency);
+#endif
 
 	ULONG Enable = 1;
 
@@ -142,51 +161,88 @@ unsigned __stdcall ThreadDaqIntoSdramDMA(void* pParams)
 	status = BRD_ctrl(hADC, 0, BRDctrl_ADC_FIFORESET, NULL); // сборс FIFO АЦП
 	status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_FIFORESET, NULL); // сборс FIFO SDRAM
 	status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_ENABLE, &Enable); // разрешение записи в SDRAM
-
+#ifdef _WIN32
 	QueryPerformanceCounter (&StartPerformCount);
+#endif
 	status = BRD_ctrl(hADC, 0, BRDctrl_ADC_ENABLE, &Enable); // разрешение работы АЦП
 
 	// дожидаемся окончания сбора
+
 	BRD_WaitEvent waitEvt;
-	waitEvt.timeout = 6*g_MsTimeout; // ждать окончания сбора данных до g_MsTimeout мсек.
+#ifdef _WIN32
+	waitEvt.timeout = g_MsTimeout; // ждать окончания сбора данных до g_MsTimeout мсек.
 	waitEvt.hAppEvent = g_hUserEvent;
-	status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_WAITACQCOMPLETEEX, &waitEvt);
+#else
+	waitEvt.timeout = INFINITE; // ждать окончания сбора данных до g_MsTimeout мсек.
+	waitEvt.hAppEvent = NULL;
+#endif
+
+// ждем события(или idx<0) или завершения сбора данных или таймаут (если установлен)
+#ifdef _WIN32
+	evt_status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_WAITACQCOMPLETEEX, &waitEvt);
+#else
+	evt_status = BRDerr_WAIT_TIMEOUT;
+	while(pThreadParam->idx >= 0)
+	{
+		status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_ISACQCOMPLETE, &Status);
+		if(!BRD_errcmp(status, BRDerr_OK))
+			DisplayError(status, __FUNCTION__, _BRDC("BRDctrl_SDRAM_ISACQCOMPLETE"));
+		if(Status)	{evt_status = BRDerr_OK; break;}
+		IPC_delay(50);
+	}
+#endif	
+#ifdef _WIN32
 	QueryPerformanceCounter (&StopPerformCount);
-	if(BRD_errcmp(status, BRDerr_WAIT_TIMEOUT))
-	{	// если вышли по тайм-ауту
-		evt_status = status;
+#endif
+	// если вышли по таймауту или событию выводим сообщение
+	if (BRD_errcmp(evt_status, BRDerr_WAIT_TIMEOUT))
+	{	
 		status = BRD_ctrl(hADC, 0, BRDctrl_ADC_FIFOSTATUS, &AdcStatus);
 		status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_FIFOSTATUS, &Status);
 		status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_ISACQCOMPLETE, &isAcqComplete);
-		//BRDCHAR msg[255];
+#ifdef _WIN32
 		BRDC_printf(_BRDC("\nBRDctrl_SDRAM_WAITACQCOMPLETE is TIME-OUT(%d sec.)\n    AdcFifoStatus = %08X SdramFifoStatus = %08X\n"),
 															waitEvt.timeout/1000, AdcStatus, Status);
-		//DisplayError(evt_status, __FUNCTION__, msg);
-		// получить реальное число собранных данных
-		ULONG acq_size;
+#else
+		BRDC_printf(_BRDC("\nExit by user interrupt\n    AdcFifoStatus = %08X SdramFifoStatus = %08X\n"), AdcStatus, Status);
+#endif
+		// получить реальное число собранных данных		
 		status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_GETACQSIZE, &acq_size);
+		#ifdef _WIN32
 		unsigned __int64 bRealSize = (unsigned __int64)acq_size << 2; // запомнить в байтах
+		#else
+		unsigned long long bRealSize = (long long)acq_size << 2; // запомнить в байтах;
+		#endif
 		BRDC_printf(_BRDC("    isAcqComplete=%d, DAQ real size = %d kByte\n"), isAcqComplete, (ULONG)(bRealSize / 1024));
 	}
-	//evt_status = status;
 
 	Enable = 0;
 
 	status = BRD_ctrl(hADC, 0, BRDctrl_ADC_ENABLE, &Enable); // запрет работы АЦП
 	status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_ENABLE, &Enable); // запрет записи в SDRAM
-
 	status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_IRQACQCOMPLETE, &Enable); // запрет прерывания от флага завершения сбора в SDRAM
 
-//	CloseHandle(g_hUserEvent);
-
+	// Выходим если не произошло сбора данных
 	if(!BRD_errcmp(evt_status, BRDerr_OK))
-//	if(BRD_errcmp(evt_status, BRDerr_SIGNALED_APPEVENT))
-//	if(evt_status == BRDerr_SIGNALED_APPEVENT)
-		return evt_status;
+	{
+		
+#ifdef _WIN32
+			return evt_status
+#else
+		// установить idx отрицательным = поток завершен
+		pthread_mutex_lock(&mutex);
+		(*pThreadParam).idx = pThreadParam->idx - 2; // Всегда запускаем поток с idx=1. При выходе по старту будет -1, при выходе по внешнему сигналу -3
+		pthread_mutex_unlock(&mutex);
+		//BRDC_printf(_BRDC("\nExit point 1. idx = %d\n"), pThreadParam->idx);
+		pthread_exit(&evt_status);
+#endif
+	}
 
+#ifdef _WIN32
 	double msTime = (double)(StopPerformCount.QuadPart - StartPerformCount.QuadPart) / (double)Frequency.QuadPart * 1.E3;
 	if(g_transRate)
 		printf("DAQ into board memory rate is %.2f Mbytes/sec\r", ((double)g_bMemBufSize / msTime)/1000.);
+#endif
 
 	// установить, что стрим работает с памятью
 	ULONG tetrad;
@@ -194,9 +250,6 @@ unsigned __stdcall ThreadDaqIntoSdramDMA(void* pParams)
 	status = BRD_ctrl(hADC, 0, BRDctrl_STREAM_SETSRC, &tetrad);
 
 	// устанавливать флаг для формирования запроса ПДП надо после установки источника (тетрады) для работы стрима
-//	ULONG flag = BRDstrm_DRQ_ALMOST; // FIFO почти пустое
-//	ULONG flag = BRDstrm_DRQ_READY;
-//	ULONG flag = BRDstrm_DRQ_HALF; // рекомендуется флаг - FIFO наполовину заполнено
 	ULONG flag = g_MemDrqFlag;
 	status = BRD_ctrl(hADC, 0, BRDctrl_STREAM_SETDRQ, &flag);
 	if(!BRD_errcmp(status, BRDerr_OK))
@@ -204,47 +257,33 @@ unsigned __stdcall ThreadDaqIntoSdramDMA(void* pParams)
 
 	BRD_ctrl(hADC, 0, BRDctrl_STREAM_RESETFIFO, NULL);
 
-//	BRDctrl_StreamCBufStart start_pars;
-//	start_pars.isCycle = 0; // без зацикливания 
-//	status = BRD_ctrl(hADC, 0, BRDctrl_STREAM_CBUF_START, &start_pars);
-////	ULONG msTimeout = 20000; // ждать окончания передачи данных до 20 сек.
-////	status = BRD_ctrl(hADC, 0, BRDctrl_STREAM_CBUF_WAITBUF, &msTimeout);
-//	waitEvt.timeout = 20000; // ждать окончания сбора данных до 20 сек.
-//	waitEvt.hAppEvent = g_hUserEvent;
-//	status = BRD_ctrl(hADC, 0, BRDctrl_STREAM_CBUF_WAITBUFEX, &waitEvt);
-//	if(BRD_errcmp(status, BRDerr_WAIT_TIMEOUT))
-//	{	// если вышли по тайм-ауту, то остановимся
-//		evt_status = status;
-//		status = BRD_ctrl(hADC, 0, BRDctrl_STREAM_CBUF_STOP, NULL);
-//		DisplayError(status, __FUNCTION__, "TIME-OUT");
-//	}
-//	evt_status = status;
-//	if(BRD_errcmp(evt_status, BRDerr_SIGNALED_APPEVENT))
-//		status = BRD_ctrl(hADC, 0, BRDctrl_STREAM_CBUF_STOP, NULL);
-//	if(!BRD_errcmp(evt_status, BRDerr_OK))
-//		return evt_status;
-
-/*	long long event_counter = 0;
-	BRD_AdcSpec adcSpec;
-	adcSpec.command = FM412X500Mcmd_GETEVENTCNT;
-	adcSpec.arg= (PVOID)&event_counter; 
-	status = BRD_ctrl(hADC, 0, BRDctrl_ADC_SETSPECIFIC,  &adcSpec); 
-	if(!BRD_errcmp(status, BRDerr_OK))
-		DisplayError(status, __FUNCTION__, _BRDC("FM412X500Mcmd_GETEVENTCNT"));
-	else
-		BRDC_printf(_BRDC("FM412X500Mcmd_GETEVENTCNT: %I64u\n"), event_counter);*/
 	evt_status = status;
+
+
+	// return/exit
+#ifdef _WIN32
 	return status;
+#else
+	// установить idx отрицательным = поток завершен
+	pthread_mutex_lock(&mutex);
+	(*pThreadParam).idx = pThreadParam->idx - 2; // Всегда запускаем поток с idx=1. При выходе по старту будет -1, при выходе по внешнему сигналу -3
+	pthread_mutex_unlock(&mutex);
+	//BRDC_printf(_BRDC("\nExit point 2. idx = %d\n"), pThreadParam->idx);
+	pthread_exit(&status);
+#endif
+
 }
 
 // создает событие и запускает тред
 S32 StartDaqIntoSdramDMA(BRD_Handle hADC, int idx)
 {
 	S32		status = BRDerr_OK;
-    unsigned threadID;
-
+    
 	thread_par.handle = hADC;
 	thread_par.idx = idx;
+
+#ifdef _WIN32
+	unsigned threadID;
 	g_hUserEvent = CreateEvent( 
 							NULL,   // default security attributes
 							FALSE,  // auto-reset event object
@@ -253,6 +292,12 @@ S32 StartDaqIntoSdramDMA(BRD_Handle hADC, int idx)
 
 	// Create thread
 	g_hThread = (HANDLE)_beginthreadex( NULL, 0, &ThreadDaqIntoSdramDMA, &thread_par, 0, &threadID );
+#else
+	int threadID;
+	iret = pthread_create( &thread, NULL, ThreadDaqIntoSdramDMA, (void*) &thread_par);
+	mutex = PTHREAD_MUTEX_INITIALIZER;
+	threadID = iret;
+#endif
 	return 1;
 }
 
@@ -260,31 +305,48 @@ S32 StartDaqIntoSdramDMA(BRD_Handle hADC, int idx)
 S32 CheckDaqIntoSdramDMA()
 {
 	// check for terminate thread
-    ULONG ret = WaitForSingleObject(g_hThread, 0);
+#ifdef _WIN32   
+	ULONG ret = WaitForSingleObject(g_hThread, 0);
 	if(ret == WAIT_TIMEOUT)
 		return 0;
+#else
+	if(thread_par.idx < 0)
+		return 0;
+#endif
 	return 1;
 }
 
 // прерывает исполнение треда, находящегося в ожидании завершения сбора данных в SDRAM или передачи их по ПДП
 void BreakDaqIntoSdramDMA()
 {
+#ifdef _WIN32	
 	SetEvent(g_hUserEvent); // установить в состояние Signaled
     WaitForSingleObject(g_hThread, INFINITE); // Wait until thread terminates
-//	CloseHandle(g_hUserEvent);
-//	CloseHandle(g_hThread);
+#else
+	pthread_mutex_lock(&mutex);
+	thread_par.idx = -1; // установить idx как отрицательным
+	pthread_mutex_unlock(&mutex);
+	pthread_join(thread, NULL);	// Wait until thread terminates
+#endif
 }
 
 // Эта функция должна вызываться ТОЛЬКО когда тред уже закончил исполняться 
 S32 EndDaqIntoSdramDMA()
 {
+#ifdef _WIN32
 	CloseHandle(g_hUserEvent);
 	CloseHandle(g_hThread);
 	g_hUserEvent = NULL;
 	g_hThread = NULL;
 	return evt_status;
-}
+#else
+	if(thread_par.idx == -1) // выход по готовности данных (запуску)
+		return iret;
+	else
+		return -1;
 #endif
+}
+
 
 // выполнить сбор данных в SDRAM с ПДП-методом передачи в ПК
 // без использования прерывания по окончанию сбора
@@ -311,7 +373,7 @@ S32 DaqIntoSdramDMA(BRD_Handle hADC)
 	if(!BRD_errcmp(status, BRDerr_OK))
 		DisplayError(status, __FUNCTION__, _BRDC("BRDctrl_ADC_ENABLE"));
 
-	ULONG cntTimeout = 6*g_MsTimeout / 50;
+	ULONG cntTimeout = g_MsTimeout / 50;
 	evt_status = BRDerr_WAIT_TIMEOUT;
 	// дожидаемся окончания сбора
 	for(ULONG i = 0; i < cntTimeout; i++)
@@ -335,8 +397,7 @@ S32 DaqIntoSdramDMA(BRD_Handle hADC)
 		status = BRD_ctrl(hADC, 0, BRDctrl_ADC_FIFOSTATUS, &AdcStatus);
 		status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_FIFOSTATUS, &SdramStatus);
 		BRDC_printf(_BRDC("\nBRDctrl_SDRAM_ISACQCOMPLETE is TIME-OUT(%d sec.)\n    AdcFifoStatus = %08X SdramFifoStatus = %08X\n"),
-			6*g_MsTimeout / 1000, AdcStatus, SdramStatus);
-		//return evt_status;
+			g_MsTimeout / 1000, AdcStatus, SdramStatus);
 	}
 
 	Enable = 0;
@@ -388,7 +449,7 @@ S32 DataFromMem(BRD_Handle hADC, PVOID pBuf, ULONG bBufSize, ULONG DmaOn)
 			DisplayError(status, __FUNCTION__, _BRDC("BRDctrl_STREAM_CBUF_START"));
 		else
 		{
-			ULONG msTimeout = 6*g_MsTimeout; // ждать окончания передачи данных до 5 сек.
+			ULONG msTimeout = g_MsTimeout; // ждать окончания передачи данных до 5 сек.
 			status = BRD_ctrl(hADC, 0, BRDctrl_STREAM_CBUF_WAITBUF, &msTimeout);
 			if(BRD_errcmp(status, BRDerr_WAIT_TIMEOUT))
 			{	// если вышли по тайм-ауту, то остановимся

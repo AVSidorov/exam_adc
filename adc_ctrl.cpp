@@ -963,7 +963,11 @@ S32 AllocDaqBuf(BRD_Handle hADC, PVOID* &pSig, unsigned long long* pbytesBufSize
 #endif
 	{
 		do
+#ifdef _WIN32
 		{
+#else  // LINUX
+		{
+#endif		
 			blkNum <<= 1;
 			bBufSize >>= 1;
 		//}while(bBufSize > 2147483648);
