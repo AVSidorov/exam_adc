@@ -2,7 +2,9 @@
 
 SET CMAKE="cmake.exe"
 SET SOURCE_PATH=%CD%
-SET BUILD_DIR=%CD%\build\cmakefiles
+
+IF [%1]==[] SET BUILD_TYPE=debug
+SET BUILD_DIR=%CD%\out\build
 
 
 IF EXIST %BUILD_DIR% (
@@ -15,7 +17,6 @@ IF EXIST %BUILD_DIR% (
 
 cd %BUILD_DIR%
 
-%CMAKE% -S %SOURCE_PATH% -B %BUILD_DIR% -G "MinGW Makefiles" --toolchain "c:/Program Files/Cmake/bin/arm-linux-gnueabihf.cmake"
-
-%CMAKE% --build . 
+%CMAKE% -S %SOURCE_PATH% -B %BUILD_DIR% -G "MinGW Makefiles" --toolchain "c:/Program Files/Cmake/bin/arm-linux-gnueabihf.cmake" -DCMAKE_BUILD_TYPE=%BUILD_TYPE%
+%CMAKE% --build .
 
