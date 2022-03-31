@@ -1,6 +1,7 @@
 
 #include	"adc_ctrl.h"
 #include	"mu_ctrl.h"
+#include	"netsend.h"
 
 #include	<math.h>
 
@@ -150,14 +151,17 @@ int CheckClock(BRD_Handle hADC, BRDCHAR* AdcSrvName)
 		{
 			BRD_ClkMode clk_mode;
 			status = BRD_ctrl(hADC, 0, BRDctrl_ADC_GETCLKMODE, &clk_mode);
+			netsend(BRDctrl_ADC_GETCLKMODE,0,status);
 			status = BRD_ctrl(hADC, 0, BRDctrl_ADC_SETCLKMODE, &clk_mode);
+			netsend(BRDctrl_ADC_SETCLKMODE,0,status);
 #if defined(__IPC_WIN__) || defined(__IPC_LINUX__)
 			IPC_delay(10);
 #else
 			Sleep(10);
 #endif
 			ULONG fifo_status;
-			BRD_ctrl(hADC, 0, BRDctrl_ADC_FIFOSTATUS, &fifo_status);
+			status = BRD_ctrl(hADC, 0, BRDctrl_ADC_FIFOSTATUS, &fifo_status);
+			netsend(BRDctrl_ADC_FIFOSTATUS,fifo_status,status);
 			if(fifo_status & 0x1000)
 			{
 				status = 1;
@@ -184,6 +188,7 @@ S32 AdcSettings(BRD_Handle hADC, int idx, int isx, BRDCHAR* srvName, BRDCHAR* in
 
 	BRD_AdcCfg adc_cfg;
 	status = BRD_ctrl(hADC, 0, BRDctrl_ADC_GETCFG, &adc_cfg);
+	netsend(BRDctrl_ADC_GETCFG,0,status);
 	BRDC_printf(_BRDC("ADC Config: FIFO size = %d kBytes\n"), adc_cfg.FifoSize / 1024);
 
 	//ULONG chan_mask = 3; // включаем оба канала 
@@ -205,6 +210,7 @@ S32 AdcSettings(BRD_Handle hADC, int idx, int isx, BRDCHAR* srvName, BRDCHAR* in
 	BRDC_strcpy(ini_file.fileName, iniFilePath);
 	BRDC_strcpy(ini_file.sectionName, iniSectionName);
 	status = BRD_ctrl(hADC, 0, BRDctrl_ADC_READINIFILE, &ini_file);
+	netsend(BRDctrl_ADC_READINIFILE,0,status);
 
 #ifdef _WIN32
 	// альтернативная установка параметров не из файла, а из структуры SetMU, которая индивидуальна для каждого субмодуля
@@ -214,6 +220,7 @@ S32 AdcSettings(BRD_Handle hADC, int idx, int isx, BRDCHAR* srvName, BRDCHAR* in
 	// получить источник и значение тактовой частоты можно отдельной функцией
 	BRD_SyncMode sync_mode;
 	status = BRD_ctrl(hADC, 0, BRDctrl_ADC_GETSYNCMODE, &sync_mode);
+	netsend(BRDctrl_ADC_GETSYNCMODE,0,status);
 	if(BRDC_strstr(srvName, _BRDC("ADC1624X192")) || 
 		BRDC_strstr(srvName, _BRDC("ADC1624X128")) || 
 		BRDC_strstr(srvName, _BRDC("ADC818X800")))
@@ -239,6 +246,7 @@ S32 AdcSettings(BRD_Handle hADC, int idx, int isx, BRDCHAR* srvName, BRDCHAR* in
 	U08 start_struct[40]; // наибольшая из структур имеет размер 40 байт
 	memset(start_struct, 0x5A, 40);
 	status = BRD_ctrl(hADC, 0, BRDctrl_ADC_GETSTARTMODE, &start_struct);
+	netsend(BRDctrl_ADC_GETSTARTMODE,0,status);
 	if(BRD_errcmp(status, BRDerr_OK))
 	{
 		if(start_struct[39] == 0x5A)
@@ -287,6 +295,7 @@ S32 AdcSettings(BRD_Handle hADC, int idx, int isx, BRDCHAR* srvName, BRDCHAR* in
 	adc_delay.nodeID = 8; // external start delay
 	adc_delay.value = 0x3f; // non-valid value
 	status = BRD_ctrl(hADC, 0, BRDctrl_ADC_RDDELAY, &adc_delay);
+	netsend(BRDctrl_ADC_RDDELAY,adc_delay.value,status);
 	if(BRD_errcmp(status, BRDerr_OK))
 	{
 		BRDC_printf(_BRDC("BRDctrl_ADC_RDDELAY: Delay External Start = %d\n"), adc_delay.value);
@@ -334,6 +343,7 @@ S32 AdcSettings(BRD_Handle hADC, int idx, int isx, BRDCHAR* srvName, BRDCHAR* in
 				cmp_sc.thr[1] = 0.0;
 			// задать источникик и пороги для компараторов
 			status = BRD_ctrl(hADC, 0, BRDctrl_CMPSC_SET, &cmp_sc);
+			netsend(BRDctrl_CMPSC_SET,0,status);
 			if(BRD_errcmp(status, BRDerr_OK))
 				BRDC_printf(_BRDC("BRDctrl_CMPSC_SET: comparator source = %d, thresholdCHAN0 = %.2f, thresholdSDX = %.2f\n"),
 								cmp_sc.src, cmp_sc.thr[0], cmp_sc.thr[1]);
@@ -345,8 +355,10 @@ S32 AdcSettings(BRD_Handle hADC, int idx, int isx, BRDCHAR* srvName, BRDCHAR* in
 	// получить маску включенных каналов
 	ULONG chan_mask = 0;
 	status = BRD_ctrl(hADC, 0, BRDctrl_ADC_GETCHANMASK, &chan_mask);
+	netsend(BRDctrl_ADC_GETCHANMASK,chan_mask,status);
     ULONG is_complex = 0;
-    BRD_ctrl(hADC, 0, BRDctrl_ADC_ISCOMPLEX, &is_complex);
+    status = BRD_ctrl(hADC, 0, BRDctrl_ADC_ISCOMPLEX, &is_complex);
+    netsend(BRDctrl_ADC_ISCOMPLEX,is_complex,status);
 
 	//status = BRD_ctrl(hADC, 0, BRDctrl_ADC_SETCHANMASK, &chan_mask);
 	if(BRD_errcmp(status, BRDerr_OK))
@@ -366,6 +378,7 @@ S32 AdcSettings(BRD_Handle hADC, int idx, int isx, BRDCHAR* srvName, BRDCHAR* in
 	// получить формат данных
 	ULONG format = 0;
 	status = BRD_ctrl(hADC, 0, BRDctrl_ADC_GETFORMAT, &format);
+	netsend(BRDctrl_ADC_GETFORMAT,format,status);
 	if(BRD_errcmp(status, BRDerr_OK))
 		BRDC_printf(_BRDC("BRDctrl_ADC_GETFORMAT: format = %0X\n"), format);
 	else
@@ -381,6 +394,7 @@ S32 AdcSettings(BRD_Handle hADC, int idx, int isx, BRDCHAR* srvName, BRDCHAR* in
 		BRDC_printf(_BRDC("Channel %d:\n"), value_chan.chan);
 
 		status = BRD_ctrl(hADC, 0, BRDctrl_ADC_GETINPRANGE, &value_chan);
+		netsend(BRDctrl_ADC_GETINPRANGE,0,status);
 		if(BRD_errcmp(status, BRDerr_OK))
 //			printf("BRDctrl_ADC_GETINPRANGE: range of channel %d = %f\n", value_chan.chan, value_chan.value);
 			BRDC_printf(_BRDC("Range = %f\n"), value_chan.value);
@@ -388,6 +402,7 @@ S32 AdcSettings(BRD_Handle hADC, int idx, int isx, BRDCHAR* srvName, BRDCHAR* in
 			DisplayError(status, __FUNCTION__, _BRDC("BRDctrl_ADC_GETINPRANGE"));
 
 		status = BRD_ctrl(hADC, 0, BRDctrl_ADC_GETBIAS, &value_chan);
+		netsend(BRDctrl_ADC_GETBIAS,0,status);
 		if(BRD_errcmp(status, BRDerr_OK))
 //			printf("BRDctrl_ADC_GETBIAS: bias of channel %d = %f\n", value_chan.chan, value_chan.value);
 			BRDC_printf(_BRDC("Bias = %f\n"), value_chan.value);
@@ -402,6 +417,7 @@ S32 AdcSettings(BRD_Handle hADC, int idx, int isx, BRDCHAR* srvName, BRDCHAR* in
 			 || BRDC_strstr(srvName, _BRDC("FM814X125M")))
 		{
 			status = BRD_ctrl(hADC, 0, BRDctrl_ADC_GETINPRESIST, &value_chan);
+			netsend(BRDctrl_ADC_GETINPRESIST,0,status);
 			if(BRD_errcmp(status, BRDerr_OK))
 			{
 				if(value_chan.value)
@@ -426,6 +442,7 @@ S32 AdcSettings(BRD_Handle hADC, int idx, int isx, BRDCHAR* srvName, BRDCHAR* in
 			|| BRDC_strstr(srvName, _BRDC("FM814X125M")))
 		{
 			status = BRD_ctrl(hADC, 0, BRDctrl_ADC_GETDCCOUPLING, &value_chan);
+			netsend(BRDctrl_ADC_GETDCCOUPLING,0,status);
 			if(BRD_errcmp(status, BRDerr_OK))
 			{
 				if(value_chan.value)
@@ -454,6 +471,7 @@ S32 AdcSettings(BRD_Handle hADC, int idx, int isx, BRDCHAR* srvName, BRDCHAR* in
 
 	BRD_PretrigMode premode;
 	status = BRD_ctrl(hADC, 0, BRDctrl_ADC_GETPRETRIGMODE, &premode);
+	netsend(BRDctrl_ADC_GETPRETRIGMODE,0,status);
 	if(!BRD_errcmp(status, BRDerr_OK))
 		//BRDC_printf(_BRDC("Bias = %f\n"), premode.enable);
 	//else
@@ -518,6 +536,7 @@ S32 AdcSettings(BRD_Handle hADC, int idx, int isx, BRDCHAR* srvName, BRDCHAR* in
 		spec.command = ADCcmd_ADJUST;
 		spec.arg = &stabil;
 		status = BRD_ctrl(hADC, 0, BRDctrl_ADC_SETSPECIFIC, &spec);
+		netsend(BRDctrl_ADC_SETSPECIFIC,0,status);
 		BRDC_printf(_BRDC("IoDelay reset!\n"));
 		if(g_IoDelay)
 		{
@@ -526,7 +545,8 @@ S32 AdcSettings(BRD_Handle hADC, int idx, int isx, BRDCHAR* srvName, BRDCHAR* in
 			int num = abs(g_IoDelay);
 			for(int i = 0; i < num; i++)
 			{
-				BRD_ctrl(hADC, 0, BRDctrl_ADC_SETSPECIFIC, &spec);
+				status = BRD_ctrl(hADC, 0, BRDctrl_ADC_SETSPECIFIC, &spec);
+				netsend(BRDctrl_ADC_SETSPECIFIC,0,status);
 			}
 			BRDC_printf(_BRDC("IoDelay = %d\n"), g_IoDelay);
 		}
@@ -565,6 +585,7 @@ S32 AdcSettings(BRD_Handle hADC, int idx, int isx, BRDCHAR* srvName, BRDCHAR* in
 void MappingIsviParams(BRD_Handle hADC, unsigned long long nNumberOfBytes)
 {
 	char    str_buf[32768];
+	S32		status;
 
     sprintf(g_pPostfix, "\r\nDEVICE_NAME_________ " );
 #ifdef _WIN64
@@ -576,15 +597,19 @@ void MappingIsviParams(BRD_Handle hADC, unsigned long long nNumberOfBytes)
 #endif
 
 	BRD_AdcCfg adc_cfg;
-	BRD_ctrl(hADC, 0, BRDctrl_ADC_GETCFG, &adc_cfg);
+	status = BRD_ctrl(hADC, 0, BRDctrl_ADC_GETCFG, &adc_cfg);
+	netsend(BRDctrl_ADC_GETCFG,0,status);
 	//BRD_ctrl(hADC, 0, BRDctrl_ADC_GETRATE, &g_samplRate);
 	ULONG chanMask;
-	BRD_ctrl(hADC, 0, BRDctrl_ADC_GETCHANMASK, &chanMask);
+	status = BRD_ctrl(hADC, 0, BRDctrl_ADC_GETCHANMASK, &chanMask);
+	netsend(BRDctrl_ADC_GETCHANMASK,0,status);
 	ULONG format = 0;
-	BRD_ctrl(hADC, 0, BRDctrl_ADC_GETFORMAT, &format);
+	status = BRD_ctrl(hADC, 0, BRDctrl_ADC_GETFORMAT, &format);
+	netsend(BRDctrl_ADC_GETFORMAT,format,status);
 
 	ULONG is_complex = 0;
-	BRD_ctrl(hADC, 0, BRDctrl_ADC_ISCOMPLEX, &is_complex);
+	status = BRD_ctrl(hADC, 0, BRDctrl_ADC_ISCOMPLEX, &is_complex);
+	netsend(BRDctrl_ADC_ISCOMPLEX,is_complex,status);
 
 	int num_chan = 0;
 	int	chans[2 * MAX_CHAN];
@@ -603,7 +628,8 @@ void MappingIsviParams(BRD_Handle hADC, unsigned long long nNumberOfBytes)
 			}
 
 			val_chan.chan = iChan;
-			BRD_ctrl(hADC, 0, BRDctrl_ADC_GETGAIN, &val_chan);
+			status = BRD_ctrl(hADC, 0, BRDctrl_ADC_GETGAIN, &val_chan);
+			netsend(BRDctrl_ADC_GETGAIN,0,status);
 
 			if (adc_cfg.ChanType == 1)
 				val_chan.value = pow(10., val_chan.value / 20); // dB -> разы
@@ -619,7 +645,8 @@ void MappingIsviParams(BRD_Handle hADC, unsigned long long nNumberOfBytes)
 				chans[num_chan++] = iChan;
 
 			val_chan.chan = iChan;
-			BRD_ctrl(hADC, 0, BRDctrl_ADC_GETGAIN, &val_chan);
+			status = BRD_ctrl(hADC, 0, BRDctrl_ADC_GETGAIN, &val_chan);
+			netsend(BRDctrl_ADC_GETGAIN,0,status);
 
 			if (adc_cfg.ChanType == 1)
 				val_chan.value = pow(10., val_chan.value / 20); // dB -> разы
@@ -683,7 +710,8 @@ void MappingIsviParams(BRD_Handle hADC, unsigned long long nNumberOfBytes)
 		{
 			BRD_ValChan val_chan;
 			val_chan.chan = iChan / 2;
-			BRD_ctrl(hADC, 0, BRDctrl_ADC_GETFC, &val_chan);
+			status = BRD_ctrl(hADC, 0, BRDctrl_ADC_GETFC, &val_chan);
+			netsend(BRDctrl_ADC_GETFC,0,status);
 			fc[iChan] = val_chan.value;
 		}
 		sprintf(buf, "%.2f,", fc[iChan]);
@@ -738,14 +766,18 @@ S32 DaqIntoFifo(BRD_Handle hADC, PVOID pSig, ULONG bBufSize, int DspMode)
 	ULONG Enable = 1;
 
 	status = BRD_ctrl(hADC, 0, BRDctrl_ADC_FIFORESET, NULL); // сборс FIFO АЦП
+	netsend(BRDctrl_ADC_FIFORESET,0,status);
 //	if(DspMode)
 //		status = BRD_ctrl(hADC, 0, BRDctrl_DSPNODE_FIFORESET, NULL); // сброс FIFO ПЛИС ЦОС
 	if(g_MemAsFifo)
 	{
 		status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_FIFORESET, NULL); // сборс FIFO SDRAM
+		netsend(BRDctrl_SDRAM_FIFORESET,0,status);
 		status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_ENABLE, &Enable); // разрешение записи в SDRAM
+		netsend(BRDctrl_SDRAM_FIFORESET,Enable,status);
 	}
 	status = BRD_ctrl(hADC, 0, BRDctrl_ADC_ENABLE, &Enable); // разрешение работы АЦП
+	netsend(BRDctrl_ADC_ENABLE,Enable,status);
 
 	// дожидаемся заполнения FIFO
 	do {
@@ -753,16 +785,26 @@ S32 DaqIntoFifo(BRD_Handle hADC, PVOID pSig, ULONG bBufSize, int DspMode)
 //			status = BRD_ctrl(hADC, 0, BRDctrl_DSPNODE_FIFOSTATUS, &Status);
 //		else
 			if(g_MemAsFifo)
+			{
 				status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_FIFOSTATUS, &Status);
+				netsend(BRDctrl_SDRAM_FIFOSTATUS,Status,status);
+			}
 			else
+			{
 				status = BRD_ctrl(hADC, 0, BRDctrl_ADC_FIFOSTATUS, &Status);
+				netsend(BRDctrl_ADC_FIFOSTATUS,Status,status);
+			}
 	} while(Status & 0x40);
 
 	Enable = 0;
 	status = BRD_ctrl(hADC, 0, BRDctrl_ADC_ENABLE, &Enable); // запрет работы АЦП
+	netsend(BRDctrl_ADC_ENABLE,Enable,status);
 
 	if(g_MemAsFifo)
+	{
 		status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_ENABLE, &Enable); // запрет записи в SDRAM
+		netsend(BRDctrl_SDRAM_ENABLE,Enable,status);
+	}
 
 	BRD_DataBuf data_buf;
 	data_buf.pData = pSig;
@@ -771,10 +813,15 @@ S32 DaqIntoFifo(BRD_Handle hADC, PVOID pSig, ULONG bBufSize, int DspMode)
 //		status = BRD_ctrl(hADC, 0, BRDctrl_DSPNODE_GETDATA, &data_buf);
 //	else
 		if(g_MemAsFifo)
+		{
 			status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_GETDATA, &data_buf);
+			netsend(BRDctrl_SDRAM_GETDATA,data_buf.size,status);
+		}
 		else
+		{
 			status = BRD_ctrl(hADC, 0, BRDctrl_ADC_GETDATA, &data_buf);
-
+			netsend(BRDctrl_ADC_GETDATA,data_buf.size,status);
+		}
 	return status;
 }
 
@@ -790,10 +837,17 @@ S32 DaqIntoFifoDMA(BRD_Handle hADC)
 	// установить источник для работы стрима
 	ULONG tetrad;
 	if(g_MemAsFifo)
+	{
 		status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_GETSRCSTREAM, &tetrad); // стрим будет работать с SDRAM
+		netsend(BRDctrl_SDRAM_GETSRCSTREAM,tetrad,status);
+	}
 	else
+	{
 		status = BRD_ctrl(hADC, 0, BRDctrl_ADC_GETSRCSTREAM, &tetrad); // стрим будет работать с АЦП
+		netsend(BRDctrl_ADC_GETSRCSTREAM,tetrad,status);
+	}
 	status = BRD_ctrl(hADC, 0, BRDctrl_STREAM_SETSRC, &tetrad);
+	netsend(BRDctrl_STREAM_SETSRC,tetrad,status);
 
 	// устанавливать флаг для формирования запроса ПДП надо после установки источника (тетрады) для работы стрима
 //	ULONG flag = BRDstrm_DRQ_ALMOST; // FIFO почти пустое
@@ -803,21 +857,27 @@ S32 DaqIntoFifoDMA(BRD_Handle hADC)
 	if(g_MemAsFifo)
 		flag = g_MemDrqFlag;
 	status = BRD_ctrl(hADC, 0, BRDctrl_STREAM_SETDRQ, &flag);
+	netsend(BRDctrl_STREAM_SETDRQ,flag,status);
 	if(!BRD_errcmp(status, BRDerr_OK))
 		DisplayError(status, __FUNCTION__, _BRDC("BRDctrl_STREAM_SETDRQ"));
 
 	status = BRD_ctrl(hADC, 0, BRDctrl_ADC_FIFORESET, NULL); // сброс FIFO АЦП
+	netsend(BRDctrl_ADC_FIFORESET,0,status);
 	if(g_MemAsFifo)
 	{
 		status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_FIFORESET, NULL); // сброс FIFO SDRAM
+		netsend(BRDctrl_SDRAM_FIFORESET,0,status);
 		status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_ENABLE, &Enable); // разрешение записи в SDRAM
+		netsend(BRDctrl_SDRAM_ENABLE,Enable,status);
 	}
 	status = BRD_ctrl(hADC, 0, BRDctrl_STREAM_RESETFIFO, NULL);
+	netsend(BRDctrl_STREAM_RESETFIFO,0,status);
 
 	BRDctrl_StreamCBufStart start_pars;
 	start_pars.isCycle = 0; // без зацикливания 
 	//start_pars.isCycle = 1; // с зацикливанием
 	status = BRD_ctrl(hADC, 0, BRDctrl_STREAM_CBUF_START, &start_pars); // старт ПДП
+	netsend(BRDctrl_STREAM_CBUF_START,0,status);
 
 #ifdef _WIN32
 	// определение скорости сбора данных
@@ -831,6 +891,7 @@ S32 DaqIntoFifoDMA(BRD_Handle hADC)
 	gettimeofday(&start, 0);
 #endif
 	status = BRD_ctrl(hADC, 0, BRDctrl_ADC_ENABLE, &Enable); // разрешение работы АЦП
+	netsend(BRDctrl_ADC_ENABLE,Enable,status);
 
 	ULONG msTimeout = g_MsTimeout; // ждать окончания сбора данных до g_MsTimeout мсек.
 	//ULONG msTimeout = 20000; // ждать окончания передачи данных до 20 сек.
@@ -858,6 +919,7 @@ S32 DaqIntoFifoDMA(BRD_Handle hADC)
 	//}
 
 	status = BRD_ctrl(hADC, 0, BRDctrl_STREAM_CBUF_WAITBUF, &msTimeout);
+	netsend(BRDctrl_STREAM_CBUF_WAITBUF,msTimeout,status);
 #ifdef _WIN32
 	QueryPerformanceCounter (&StopPerformCount);
 #else
@@ -866,6 +928,7 @@ S32 DaqIntoFifoDMA(BRD_Handle hADC)
 	if(BRD_errcmp(status, BRDerr_WAIT_TIMEOUT))
 	{	// если вышли по тайм-ауту, то остановимся
 		status = BRD_ctrl(hADC, 0, BRDctrl_STREAM_CBUF_STOP, NULL);
+		netsend(BRDctrl_STREAM_CBUF_STOP,0,status);
 		//DisplayError(status, __FUNCTION__, _BRDC("TIME-OUT"));
 		ULONG AdcStatus = 0;
 		ULONG Status = 0;
@@ -873,7 +936,9 @@ S32 DaqIntoFifoDMA(BRD_Handle hADC)
 		if(g_MemAsFifo)
 		{
 			status = BRD_ctrl(hADC, 0, BRDctrl_ADC_FIFOSTATUS, &AdcStatus);
+			netsend(BRDctrl_ADC_FIFOSTATUS,AdcStatus,status);
 			status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_FIFOSTATUS, &Status);
+			netsend(BRDctrl_SDRAM_FIFOSTATUS,Status,status);
             BRDC_snprintf(msg, sizeof(msg), _BRDC("BRDctrl_STREAM_CBUF_WAITBUF is TIME-OUT(%d sec.)\n AdcFifoStatus = %08X SdramFifoStatus = %08X"),
 															msTimeout/1000, AdcStatus, Status);
 			//IPC_getch();
@@ -881,6 +946,7 @@ S32 DaqIntoFifoDMA(BRD_Handle hADC)
 		else
 		{
 			status = BRD_ctrl(hADC, 0, BRDctrl_ADC_FIFOSTATUS, &Status);
+			netsend(BRDctrl_ADC_FIFOSTATUS,Status,status);
             BRDC_snprintf(msg, sizeof(msg), _BRDC("BRDctrl_STREAM_CBUF_WAITBUF is TIME-OUT(%d sec.)\n AdcFifoStatus = %08X"),
 															msTimeout/1000, Status);
 			//IPC_getch();
@@ -910,9 +976,13 @@ S32 DaqIntoFifoDMA(BRD_Handle hADC)
 */
 	Enable = 0;
 	status = BRD_ctrl(hADC, 0, BRDctrl_ADC_ENABLE, &Enable); // запрет работы АЦП
+	netsend(BRDctrl_ADC_ENABLE,Enable,status);
 
 	if(g_MemAsFifo)
+	{
 		status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_ENABLE, &Enable); // запрет записи в SDRAM
+		netsend(BRDctrl_SDRAM_ENABLE,Enable,status);
+	}
 
 #ifdef _WIN32
 	double msTime = (double)(StopPerformCount.QuadPart - StartPerformCount.QuadPart) / (double)Frequency.QuadPart * 1.E3;
@@ -930,6 +1000,7 @@ S32 DaqIntoFifoDMA(BRD_Handle hADC)
 		printf("DAQ & Transfer by bus rate is %.2f Mbytes/sec\r", ((double)g_bBufSize / msTime)/1000.);
 
 	status = BRD_ctrl(hADC, 0, BRDctrl_ADC_ISBITSOVERFLOW, &adc_status);
+	netsend(BRDctrl_ADC_ISBITSOVERFLOW,adc_status,status);
 	//status = BRD_ctrl(hADC, 0, BRDctrl_ADC_FIFOSTATUS, &adc_status);
 	//printf("ADC status = 0x%X ", adc_status);
 	if(adc_status)
@@ -1069,6 +1140,7 @@ S32 AllocDaqBuf(BRD_Handle hADC, PVOID* &pSig, unsigned long long* pbytesBufSize
 	}
 
 	status = BRD_ctrl(hADC, 0, BRDctrl_STREAM_CBUF_ALLOC, &g_buf_dscr);
+	netsend(BRDctrl_STREAM_CBUF_ALLOC,0,status);
 	if(!BRD_errcmp(status, BRDerr_OK) && !BRD_errcmp(status, BRDerr_PARAMETER_CHANGED))
 		DisplayError(status, __FUNCTION__, _BRDC("BRDctrl_STREAM_CBUF_ALLOC"));
 	if(BRD_errcmp(status, BRDerr_PARAMETER_CHANGED))
@@ -1095,6 +1167,7 @@ S32 FreeDaqBuf(BRD_Handle hADC, ULONG blkNum)
 {
 	S32		status;
 	status = BRD_ctrl(hADC, 0, BRDctrl_STREAM_CBUF_FREE, NULL);
+	netsend(BRDctrl_STREAM_CBUF_FREE,0,status);
 	if(!BRD_errcmp(status, BRDerr_OK))
 		DisplayError(status, __FUNCTION__, _BRDC("BRDctrl_STREAM_CBUF_FREE"));
 	if(g_buf_dscr.isCont == 2)
@@ -1353,6 +1426,7 @@ unsigned __stdcall DirWriteIntoFile(void* pParams)
 	buf_dscr.blkSize = g_fileBufSize;
 	buf_dscr.ppBlk = new PVOID[buf_dscr.blkNum];
 	status = BRD_ctrl(hSrv, 0, BRDctrl_STREAM_CBUF_ALLOC, &buf_dscr);
+	netsend(BRDctrl_STREAM_CBUF_ALLOC,0,status);
 	if(!BRD_errcmp(status, BRDerr_OK) && !BRD_errcmp(status, BRDerr_PARAMETER_CHANGED))
 	{
 		BRDC_printf(_BRDC("ERROR!!! BRDctrl_STREAM_CBUF_ALLOC\n"));
@@ -1372,13 +1446,23 @@ unsigned __stdcall DirWriteIntoFile(void* pParams)
 	// установить источник для работы стрима
 	ULONG tetrad;
 	if(g_MemAsFifo)
+	{
 		status = BRD_ctrl(hSrv, 0, BRDctrl_SDRAM_GETSRCSTREAM, &tetrad); // стрим будет работать с SDRAM
+		netsend(BRDctrl_SDRAM_GETSRCSTREAM,tetrad,status);
+	}
 	else
+	{
 		status = BRD_ctrl(hSrv, 0, BRDctrl_ADC_GETSRCSTREAM, &tetrad); // стрим будет работать с АЦП
+		netsend(BRDctrl_ADC_GETSRCSTREAM,tetrad,status);
+	}
 	status = BRD_ctrl(hSrv, 0, BRDctrl_STREAM_SETSRC, &tetrad);
+	netsend(BRDctrl_SDRAM_GETSRCSTREAM,tetrad,status);
 
 	if(g_adjust_mode)
+	{
 		status = BRD_ctrl(hSrv, 0, BRDctrl_STREAM_CBUF_ADJUST, &g_adjust_mode);
+		netsend(BRDctrl_STREAM_CBUF_ADJUST,0,status);
+	}
 
 	// устанавливать флаг для формирования запроса ПДП надо после установки источника (тетрады) для работы стрима
 //	ULONG flag = BRDstrm_DRQ_ALMOST; // FIFO почти пустое
@@ -1388,20 +1472,27 @@ unsigned __stdcall DirWriteIntoFile(void* pParams)
 	if(g_MemAsFifo)
 		flag = g_MemDrqFlag;
 	status = BRD_ctrl(hSrv, 0, BRDctrl_STREAM_SETDRQ, &flag);
+	netsend(BRDctrl_STREAM_SETDRQ,flag,status);
 
 	ULONG Enable = 1;
 	status = BRD_ctrl(hSrv, 0, BRDctrl_ADC_FIFORESET, NULL); // сброс FIFO АЦП
+	netsend(BRDctrl_ADC_FIFORESET,0,status);
 	status = BRD_ctrl(hSrv, 0, BRDctrl_STREAM_RESETFIFO, NULL);
+	netsend(BRDctrl_STREAM_RESETFIFO,0,status);
 	if(g_MemAsFifo)
 	{
 		status = BRD_ctrl(hSrv, 0, BRDctrl_SDRAM_FIFORESET, NULL); // сборс FIFO SDRAM
+		netsend(BRDctrl_SDRAM_FIFORESET,0,status);
 		status = BRD_ctrl(hSrv, 0, BRDctrl_SDRAM_ENABLE, &Enable); // разрешение записи в SDRAM
+		netsend(BRDctrl_SDRAM_ENABLE,Enable,status);
 	}
 
 	BRDctrl_StreamCBufStart start_pars;
 	start_pars.isCycle = 1; // с зацикливанием
 	status = BRD_ctrl(hSrv, 0, BRDctrl_STREAM_CBUF_START, &start_pars); // старт ПДП
+	netsend(BRDctrl_STREAM_CBUF_START,0,status);
 	status = BRD_ctrl(hSrv, 0, BRDctrl_ADC_ENABLE, &Enable); // разрешение работы АЦП
+	netsend(BRDctrl_ADC_ENABLE,Enable,status);
 
 	int errCnt = 0;
 	BRDC_printf(_BRDC("Data writing into file %s...\n"), fileName);
@@ -1412,22 +1503,29 @@ unsigned __stdcall DirWriteIntoFile(void* pParams)
 
 	Enable = 0;
 	status = BRD_ctrl(hSrv, 0, BRDctrl_ADC_ENABLE, &Enable); // запрет работы АЦП
+	netsend(BRDctrl_ADC_ENABLE,Enable,status);
 	if(g_MemAsFifo)
+	{
 		status = BRD_ctrl(hSrv, 0, BRDctrl_SDRAM_ENABLE, &Enable); // запрет записи в SDRAM
+		netsend(BRDctrl_SDRAM_ENABLE,Enable,status);
+	}
 //	printf("                                             \r");
 	if(errCnt)
 		BRDC_printf(_BRDC("ERROR (%s): buffers skiped %d\n"), fileName, errCnt);
 	BRDC_printf(_BRDC("Total Buffer Counter (%s) = %d\n"), fileName, buf_dscr.pStub->totalCounter);
 	status = BRD_ctrl(hSrv, 0, BRDctrl_ADC_FIFOSTATUS, &Status);
+	netsend(BRDctrl_ADC_FIFOSTATUS,Status,status);
 	if(Status & 0x80)
 		BRDC_printf(_BRDC("ERROR (%s): ADC FIFO is overflow\n"), fileName);
 	if(g_MemAsFifo)
 	{
 		status = BRD_ctrl(hSrv, 0, BRDctrl_SDRAM_FIFOSTATUS, &Status);
+		netsend(BRDctrl_SDRAM_FIFOSTATUS,Status,status);
 		if(Status & 0x8000)
 			BRDC_printf(_BRDC("ERROR (%s): SDRAM FIFO is overflow\n"), fileName);
 	}
 	status = BRD_ctrl(hSrv, 0, BRDctrl_STREAM_CBUF_FREE, &buf_dscr);
+	netsend(BRDctrl_STREAM_CBUF_FREE,0,status);
 	delete[] buf_dscr.ppBlk;
 
 #if defined(__IPC_WIN__) || defined(__IPC_LINUX__)
@@ -1451,11 +1549,14 @@ int SimpleProcWrDir(BRD_Handle hSrv, IPC_handle hfile, int idx, BRDctrl_StreamCB
 	for(ULONG i = 0; i < g_fileBufNum; i++)
 	{
 		status = BRD_ctrl(hSrv, 0, BRDctrl_STREAM_CBUF_WAITBLOCK, &msTimeout);
+		netsend(BRDctrl_STREAM_CBUF_WAITBLOCK,msTimeout,status);
 		if(BRD_errcmp(status, BRDerr_WAIT_TIMEOUT))
 		{	// если вышли по тайм-ауту, то остановимся
 			status = BRD_ctrl(hSrv, 0, BRDctrl_ADC_FIFOSTATUS, &Status);
+			netsend(BRDctrl_ADC_FIFOSTATUS,Status,status);
 			BRDC_printf(_BRDC("ADC FIFO Status = 0x%04X\n"), Status);
 			status = BRD_ctrl(hSrv, 0, BRDctrl_STREAM_CBUF_STOP, NULL);
+			netsend(BRDctrl_STREAM_CBUF_STOP,0,status);
 			DisplayError(status, __FUNCTION__, _BRDC("TIME-OUT"));
 			break;
 		}
@@ -1512,22 +1613,28 @@ int MultiBlkProcWrDir(BRD_Handle hSrv, IPC_handle hfile, int idx, BRDctrl_Stream
 			//printf("Waiting...\n");
 			waitblk_cnt++;
 			status = BRD_ctrl(hSrv, 0, BRDctrl_STREAM_CBUF_WAITBLOCK, &msTimeout);
+			netsend(BRDctrl_STREAM_CBUF_WAITBLOCK,msTimeout,status);
 			if(BRD_errcmp(status, BRDerr_WAIT_TIMEOUT))
 			{	// если вышли по тайм-ауту, то остановимся
 				status = BRD_ctrl(hSrv, 0, BRDctrl_ADC_FIFOSTATUS, &Status);
+				netsend(BRDctrl_ADC_FIFOSTATUS,Status,status);
 				BRDC_printf(_BRDC("ADC FIFO Status = 0x%04X\n"), Status);
 				status = BRD_ctrl(hSrv, 0, BRDctrl_STREAM_CBUF_STOP, NULL);
+				netsend(BRDctrl_STREAM_CBUF_STOP,0,status);
 				DisplayError(status, __FUNCTION__, _BRDC("TIME-OUT"));
 				break;
 			}
 			if(twice)
 			{
 				status = BRD_ctrl(hSrv, 0, BRDctrl_STREAM_CBUF_WAITBLOCK, &msTimeout);
+				netsend(BRDctrl_STREAM_CBUF_WAITBLOCK,msTimeout,status);
 				if(BRD_errcmp(status, BRDerr_WAIT_TIMEOUT))
 				{	// если вышли по тайм-ауту, то остановимся
 					status = BRD_ctrl(hSrv, 0, BRDctrl_ADC_FIFOSTATUS, &Status);
+					netsend(BRDctrl_ADC_FIFOSTATUS,Status,status);
 					BRDC_printf(_BRDC("ADC FIFO Status = 0x%04X\n"), Status);
 					status = BRD_ctrl(hSrv, 0, BRDctrl_STREAM_CBUF_STOP, NULL);
+					netsend(BRDctrl_STREAM_CBUF_STOP,0,status);
 					DisplayError(status, __FUNCTION__, _BRDC("TIME-OUT"));
 					break;
 				}
@@ -1560,18 +1667,21 @@ int MultiBlkProcWrDir(BRD_Handle hSrv, IPC_handle hfile, int idx, BRDctrl_Stream
 			if(g_MemAsFifo)
 			{
 				status = BRD_ctrl(hSrv, 0, BRDctrl_SDRAM_FIFOSTATUS, &Status);
+				netsend(BRDctrl_SDRAM_FIFOSTATUS,Status,status);
 				if(Status & 0x8000)
 					BRDC_printf(_BRDC("ERROR: SDRAM FIFO is overflow (SDRAM FIFO Status = 0x%04X)\n"), Status);
 			}
 			else
 			{
 				status = BRD_ctrl(hSrv, 0, BRDctrl_ADC_FIFOSTATUS, &Status);
+				netsend(BRDctrl_ADC_FIFOSTATUS,Status,status);
 				if(Status & 0x80)
 					BRDC_printf(_BRDC("ERROR: ADC FIFO is overflow (ADC FIFO Status = 0x%04X)\n"), Status);
 			}
 			IPC_writeFile(hfile, buf_dscr->ppBlk[cur_buf], buf_dscr->blkSize);
 			if(g_adjust_mode)
 				status = BRD_ctrl(hSrv, 0, BRDctrl_STREAM_CBUF_DONE, &cur_buf);
+				netsend(BRDctrl_STREAM_CBUF_DONE,cur_buf,status);
 			cur_buf++;
 			if(cur_buf == buf_dscr->blkNum)
 				cur_buf = 0;

@@ -1,5 +1,6 @@
 
 #include	"adc_ctrl.h"
+#include	"netsend.h"
 
 #if defined(__IPC_WIN__) || defined(__IPC_LINUX__)
 #include	"gipcy.h"
@@ -28,26 +29,33 @@ S32 SdramSettings(ULONG mem_mode, BRD_Handle hADC, unsigned long long& bBuf_size
 
 	ULONG target = 2; // будем осуществлять сбор данных в память
 	status = BRD_ctrl(hADC, 0, BRDctrl_ADC_SETTARGET, &target);
+	netsend(BRDctrl_ADC_SETTARGET, target,status);
 
 	if(mem_mode == 2)
 	{	// as a FIFO
 		ULONG fifo_mode = 1; // память используется как FIFO
 		status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_SETFIFOMODE, &fifo_mode);
+		netsend(BRDctrl_SDRAM_SETFIFOMODE,fifo_mode,status);
 	}
 	else
 	{
 		ULONG fifo_mode = 0; // память используется как память
 		status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_SETFIFOMODE, &fifo_mode);
+		netsend(BRDctrl_SDRAM_SETFIFOMODE,fifo_mode,status);
 
 		ULONG rd_mode = 0; // можно применять только автоматический режим
 		status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_SETREADMODE, &rd_mode);
+		netsend(BRDctrl_SDRAM_SETREADMODE,rd_mode,status);
 
 		ULONG addr = 0;
 		status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_SETSTARTADDR, &addr); // установить адрес записи
+		netsend(BRDctrl_SDRAM_SETSTARTADDR,addr,status);
 		status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_SETREADADDR, &addr); // установить адрес чтения
+		netsend(BRDctrl_SDRAM_SETREADADDR,addr,status);
 
 		ULONG mem_size = ULONG(bBuf_size >> 2); // получить размер активной зоны в 32-разрядных словах
 		status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_SETMEMSIZE, &mem_size);
+		netsend(BRDctrl_SDRAM_SETMEMSIZE,mem_size,status);
 		bBuf_size = __int64(mem_size) << 2; // получить фактический размер активной зоны в байтах
 		if(BRD_errcmp(status, BRDerr_OK))
 			BRDC_printf(_BRDC("BRDctrl_SDRAM_SETMEMSIZE: SDRAM buffer size = %lld bytes\n"), bBuf_size);
@@ -58,6 +66,7 @@ S32 SdramSettings(ULONG mem_mode, BRD_Handle hADC, unsigned long long& bBuf_size
 		{
 			ULONG post_size = ULONG(g_bPostTrigSize >> 2);
 			status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_SETPOSTTRIGER, &post_size);
+			netsend(BRDctrl_SDRAM_SETPOSTTRIGER,post_size,status);
 			g_bPostTrigSize = (long long)post_size << 2;
 			if(BRD_errcmp(status, BRDerr_OK))
 				BRDC_printf(_BRDC("BRDctrl_SDRAM_SETPOSTTRIGER: Post-trigger size = %lld bytes\n"), g_bPostTrigSize);
@@ -83,20 +92,27 @@ S32 DaqIntoSdram(BRD_Handle hADC)
 	ULONG Enable = 1;
 
 	status = BRD_ctrl(hADC, 0, BRDctrl_ADC_FIFORESET, NULL); // сборс FIFO АЦП
+	netsend(BRDctrl_ADC_FIFORESET,0,status);
 	status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_FIFORESET, NULL); // сборс FIFO SDRAM
+	netsend(BRDctrl_SDRAM_FIFORESET,0,status);
 	status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_ENABLE, &Enable); // разрешение записи в SDRAM
+	netsend(BRDctrl_SDRAM_ENABLE,Enable,status);
 	status = BRD_ctrl(hADC, 0, BRDctrl_ADC_ENABLE, &Enable); // разрешение работы АЦП
+	netsend(BRDctrl_ADC_ENABLE,Enable,status);
 
 	// дожидаемся окончания сбора
 	do {
 //		status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_FIFOSTATUS, &Status);
 		status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_ISACQCOMPLETE, &Status);
+		netsend(BRDctrl_SDRAM_ISACQCOMPLETE,Status,status);
 	} while(!Status);
 //	} while(Status & 0x10);
 
 	Enable = 0;
 	status = BRD_ctrl(hADC, 0, BRDctrl_ADC_ENABLE, &Enable); // запрет работы АЦП
+	netsend(BRDctrl_ADC_ENABLE,Enable,status);
 	status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_ENABLE, &Enable); // запрет записи в SDRAM
+	netsend(BRDctrl_SDRAM_ENABLE,Enable,status);
 
 	//BRD_DataBuf data_buf;
 	//data_buf.pData = pSig;
@@ -156,16 +172,20 @@ void *ThreadDaqIntoSdramDMA(void *pParams)
 	ULONG Enable = 1;
 
 	status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_IRQACQCOMPLETE, &Enable); // разрешение прерывания от флага завершения сбора в SDRAM
+	netsend(BRDctrl_SDRAM_IRQACQCOMPLETE,Enable,status);
 	//status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_FIFOSTATUS, &Status);
 
 	status = BRD_ctrl(hADC, 0, BRDctrl_ADC_FIFORESET, NULL); // сборс FIFO АЦП
+	netsend(BRDctrl_ADC_FIFORESET,0,status);
 	status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_FIFORESET, NULL); // сборс FIFO SDRAM
+	netsend(BRDctrl_SDRAM_FIFORESET,0,status);
 	status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_ENABLE, &Enable); // разрешение записи в SDRAM
+	netsend(BRDctrl_SDRAM_ENABLE,Enable,status);
 #ifdef _WIN32
 	QueryPerformanceCounter (&StartPerformCount);
 #endif
 	status = BRD_ctrl(hADC, 0, BRDctrl_ADC_ENABLE, &Enable); // разрешение работы АЦП
-
+	netsend(BRDctrl_ADC_ENABLE,Enable,status);
 	// дожидаемся окончания сбора
 
 	BRD_WaitEvent waitEvt;
@@ -185,6 +205,7 @@ void *ThreadDaqIntoSdramDMA(void *pParams)
 	while(pThreadParam->idx >= 0)
 	{
 		status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_ISACQCOMPLETE, &Status);
+		netsend(BRDctrl_SDRAM_ISACQCOMPLETE,Status,status);
 		if(!BRD_errcmp(status, BRDerr_OK))
 			DisplayError(status, __FUNCTION__, _BRDC("BRDctrl_SDRAM_ISACQCOMPLETE"));
 		if(Status)	{evt_status = BRDerr_OK; break;}
@@ -198,8 +219,11 @@ void *ThreadDaqIntoSdramDMA(void *pParams)
 	if (BRD_errcmp(evt_status, BRDerr_WAIT_TIMEOUT))
 	{	
 		status = BRD_ctrl(hADC, 0, BRDctrl_ADC_FIFOSTATUS, &AdcStatus);
+		netsend(BRDctrl_ADC_FIFOSTATUS,AdcStatus,status);
 		status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_FIFOSTATUS, &Status);
+		netsend(BRDctrl_SDRAM_FIFOSTATUS,Status,status);
 		status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_ISACQCOMPLETE, &isAcqComplete);
+		netsend(BRDctrl_SDRAM_ISACQCOMPLETE,isAcqComplete,status);
 #ifdef _WIN32
 		BRDC_printf(_BRDC("\nBRDctrl_SDRAM_WAITACQCOMPLETE is TIME-OUT(%d sec.)\n    AdcFifoStatus = %08X SdramFifoStatus = %08X\n"),
 															waitEvt.timeout/1000, AdcStatus, Status);
@@ -208,6 +232,7 @@ void *ThreadDaqIntoSdramDMA(void *pParams)
 #endif
 		// получить реальное число собранных данных		
 		status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_GETACQSIZE, &acq_size);
+		netsend(BRDctrl_SDRAM_GETACQSIZE,acq_size,status);
 		#ifdef _WIN32
 		unsigned __int64 bRealSize = (unsigned __int64)acq_size << 2; // запомнить в байтах
 		#else
@@ -219,8 +244,11 @@ void *ThreadDaqIntoSdramDMA(void *pParams)
 	Enable = 0;
 
 	status = BRD_ctrl(hADC, 0, BRDctrl_ADC_ENABLE, &Enable); // запрет работы АЦП
+	netsend(BRDctrl_ADC_ENABLE,Enable,status);
 	status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_ENABLE, &Enable); // запрет записи в SDRAM
+	netsend(BRDctrl_SDRAM_ENABLE,Enable,status);
 	status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_IRQACQCOMPLETE, &Enable); // запрет прерывания от флага завершения сбора в SDRAM
+	netsend(BRDctrl_SDRAM_IRQACQCOMPLETE,Enable,status);
 
 	// Выходим если не произошло сбора данных
 	if(!BRD_errcmp(evt_status, BRDerr_OK))
@@ -247,15 +275,19 @@ void *ThreadDaqIntoSdramDMA(void *pParams)
 	// установить, что стрим работает с памятью
 	ULONG tetrad;
 	status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_GETSRCSTREAM, &tetrad);
+	netsend(BRDctrl_SDRAM_GETSRCSTREAM,tetrad,status);
 	status = BRD_ctrl(hADC, 0, BRDctrl_STREAM_SETSRC, &tetrad);
+	netsend(BRDctrl_STREAM_SETSRC,tetrad,status);
 
 	// устанавливать флаг для формирования запроса ПДП надо после установки источника (тетрады) для работы стрима
 	ULONG flag = g_MemDrqFlag;
 	status = BRD_ctrl(hADC, 0, BRDctrl_STREAM_SETDRQ, &flag);
+	netsend(BRDctrl_STREAM_SETDRQ,flag,status);
 	if(!BRD_errcmp(status, BRDerr_OK))
 		DisplayError(status, __FUNCTION__, _BRDC("BRDctrl_STREAM_SETDRQ"));
 
-	BRD_ctrl(hADC, 0, BRDctrl_STREAM_RESETFIFO, NULL);
+	status = BRD_ctrl(hADC, 0, BRDctrl_STREAM_RESETFIFO, NULL);
+	netsend(BRDctrl_STREAM_RESETFIFO,0,status);
 
 	evt_status = status;
 
@@ -361,15 +393,19 @@ S32 DaqIntoSdramDMA(BRD_Handle hADC)
 	//status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_FIFOSTATUS, &Status);
 
 	status = BRD_ctrl(hADC, 0, BRDctrl_ADC_FIFORESET, NULL); // сброс FIFO АЦП
+	netsend(BRDctrl_ADC_FIFORESET,0,status);
 	if(!BRD_errcmp(status, BRDerr_OK))
 		DisplayError(status, __FUNCTION__, _BRDC("BRDctrl_ADC_FIFORESET"));
 	status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_FIFORESET, NULL); // сброс FIFO SDRAM
+	netsend(BRDctrl_SDRAM_FIFORESET,0,status);
 	if(!BRD_errcmp(status, BRDerr_OK))
 		DisplayError(status, __FUNCTION__, _BRDC("BRDctrl_SDRAM_FIFORESET"));
 	status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_ENABLE, &Enable); // разрешение записи в SDRAM
+	netsend(BRDctrl_SDRAM_ENABLE,Enable,status);
 	if(!BRD_errcmp(status, BRDerr_OK))
 		DisplayError(status, __FUNCTION__, _BRDC("BRDctrl_SDRAM_ENABLE"));
 	status = BRD_ctrl(hADC, 0, BRDctrl_ADC_ENABLE, &Enable); // разрешение работы АЦП
+	netsend(BRDctrl_ADC_ENABLE,Enable,status);
 	if(!BRD_errcmp(status, BRDerr_OK))
 		DisplayError(status, __FUNCTION__, _BRDC("BRDctrl_ADC_ENABLE"));
 
@@ -380,6 +416,7 @@ S32 DaqIntoSdramDMA(BRD_Handle hADC)
 	{
 		//status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_FIFOSTATUS, &Status);
 		status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_ISACQCOMPLETE, &Status);
+		netsend(BRDctrl_SDRAM_ISACQCOMPLETE,Status,status);
 		if(!BRD_errcmp(status, BRDerr_OK))
 			DisplayError(status, __FUNCTION__, _BRDC("BRDctrl_SDRAM_ISACQCOMPLETE"));
 		if(Status)	{evt_status = BRDerr_OK; break;}
@@ -395,14 +432,18 @@ S32 DaqIntoSdramDMA(BRD_Handle hADC)
 		ULONG AdcStatus = 0;
 		ULONG SdramStatus = 0;
 		status = BRD_ctrl(hADC, 0, BRDctrl_ADC_FIFOSTATUS, &AdcStatus);
+		netsend(BRDctrl_ADC_FIFOSTATUS,AdcStatus,status);
 		status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_FIFOSTATUS, &SdramStatus);
+		netsend(BRDctrl_SDRAM_FIFOSTATUS,SdramStatus,status);
 		BRDC_printf(_BRDC("\nBRDctrl_SDRAM_ISACQCOMPLETE is TIME-OUT(%d sec.)\n    AdcFifoStatus = %08X SdramFifoStatus = %08X\n"),
 			g_MsTimeout / 1000, AdcStatus, SdramStatus);
 	}
 
 	Enable = 0;
 	status = BRD_ctrl(hADC, 0, BRDctrl_ADC_ENABLE, &Enable); // запрет работы АЦП
+	netsend(BRDctrl_ADC_ENABLE,Enable,status);
 	status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_ENABLE, &Enable); // запрет записи в SDRAM
+	netsend(BRDctrl_SDRAM_ENABLE,Enable,status);
 
 	if (!BRD_errcmp(evt_status, BRDerr_OK))
 		return evt_status;
@@ -416,7 +457,9 @@ S32 DaqIntoSdramDMA(BRD_Handle hADC)
 	// установить, что стрим работает с памятью
 	ULONG tetrad;
 	status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_GETSRCSTREAM, &tetrad);
+	netsend(BRDctrl_SDRAM_GETSRCSTREAM,tetrad,status);
 	status = BRD_ctrl(hADC, 0, BRDctrl_STREAM_SETSRC, &tetrad);
+	netsend(BRDctrl_STREAM_SETSRC,tetrad,status);
 
 	// устанавливать флаг для формирования запроса ПДП надо после установки источника (тетрады) для работы стрима
 //	ULONG flag = BRDstrm_DRQ_ALMOST; // FIFO почти пустое
@@ -424,10 +467,12 @@ S32 DaqIntoSdramDMA(BRD_Handle hADC)
 //	ULONG flag = BRDstrm_DRQ_HALF; // рекомендуется флаг - FIFO наполовину заполнено
 	ULONG flag = g_MemDrqFlag;
 	status = BRD_ctrl(hADC, 0, BRDctrl_STREAM_SETDRQ, &flag);
+	netsend(BRDctrl_STREAM_SETDRQ,flag,status);
 	if(!BRD_errcmp(status, BRDerr_OK))
 		DisplayError(status, __FUNCTION__, _BRDC("BRDctrl_STREAM_SETDRQ"));
 
-	BRD_ctrl(hADC, 0, BRDctrl_STREAM_RESETFIFO, NULL);
+	status = BRD_ctrl(hADC, 0, BRDctrl_STREAM_RESETFIFO, NULL);
+	netsend(BRDctrl_STREAM_RESETFIFO,0,status);
 
 	//status = BRD_ctrl(hADC, 0, BRDctrl_STREAM_RESETFIFO, NULL);
 	//if(!BRD_errcmp(status, BRDerr_OK))
@@ -445,15 +490,18 @@ S32 DataFromMem(BRD_Handle hADC, PVOID pBuf, ULONG bBufSize, ULONG DmaOn)
 		BRDctrl_StreamCBufStart start_pars;
 		start_pars.isCycle = 0; // без зацикливания 
 		status = BRD_ctrl(hADC, 0, BRDctrl_STREAM_CBUF_START, &start_pars); // стартуем передачу данных из памяти устройства в ПК
+		netsend(BRDctrl_STREAM_CBUF_START,0,status);
 		if(!BRD_errcmp(status, BRDerr_OK))
 			DisplayError(status, __FUNCTION__, _BRDC("BRDctrl_STREAM_CBUF_START"));
 		else
 		{
 			ULONG msTimeout = g_MsTimeout; // ждать окончания передачи данных до 5 сек.
 			status = BRD_ctrl(hADC, 0, BRDctrl_STREAM_CBUF_WAITBUF, &msTimeout);
+			netsend(BRDctrl_STREAM_CBUF_WAITBUF,msTimeout,status);
 			if(BRD_errcmp(status, BRDerr_WAIT_TIMEOUT))
 			{	// если вышли по тайм-ауту, то остановимся
 				status = BRD_ctrl(hADC, 0, BRDctrl_STREAM_CBUF_STOP, NULL);
+				netsend(BRDctrl_STREAM_CBUF_STOP,0,status);
 				DisplayError(status, __FUNCTION__, _BRDC("TIME-OUT"));
 			}
 		}
@@ -464,6 +512,7 @@ S32 DataFromMem(BRD_Handle hADC, PVOID pBuf, ULONG bBufSize, ULONG DmaOn)
 		data_buf.pData = pBuf;
 		data_buf.size = bBufSize;
 		status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_GETDATA, &data_buf);
+		netsend(BRDctrl_SDRAM_GETDATA,data_buf.size,status);
 	}
 	return status;
 }

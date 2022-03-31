@@ -21,14 +21,24 @@ set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/out/${CMAKE_BUILD_TYPE}/b
 
 add_compile_definitions(__IPC_LINUX__)
 
+find_package(Protobuf REQUIRED)
+
+include_directories(${Protobuf_INCLUDE_DIRS})
+include_directories(${CMAKE_CURRENT_BINARY_DIR})
+include_directories(${SOURCE_DIR})
+
 set(SOURCE_FILES exam_adc.cpp
 		 adc_ctrl.cpp
 		 mem_ctrl.cpp
-                 cont_ctrl.cpp	
-                 ../../BRDLIBS/reg_rw_spd.cpp)
+		 cont_ctrl.cpp
+		 ../../BRDLIBS/reg_rw_spd.cpp
+		 netsend.cpp
+		 exam_protocol.pb.cc)
 
 set(HEADERS adc_ctrl.h
-            mu_ctrl.h)
+            mu_ctrl.h
+            netsend.h
+            exam_protocol.pb.h)
 
 # add precompiled library
 find_library(brd  NAMES libbrd.so libbrd
@@ -65,5 +75,6 @@ find_package(Threads REQUIRED)
 add_executable(${PROJECT_NAME} ${SOURCE_FILES} ${HEADERS})
 target_link_libraries(${PROJECT_NAME} PRIVATE libbrd
                                               libgipcy
-											  Threads::Threads)
+											  Threads::Threads
+											  ${Protobuf_LIBRARIES})
 

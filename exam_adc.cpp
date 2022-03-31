@@ -20,6 +20,7 @@
  #include	<ctype.h>
  #include	"gipcy.h"
  #include	<signal.h>
+ #include	"netsend.h"
 void WriteIsviParams(IPC_handle hfile, BRD_Handle hADC, unsigned long long nNumberOfBytes);
 #else
  #include	<windows.h>
@@ -607,6 +608,7 @@ void SetSwitch(BRD_Handle handle)
 		//if(!sw.val)
 		// отключаем ненужные и включаем нужные выходы коммутатора
 			status = BRD_ctrl(hSrv, 0, BRDctrl_BASEF_SWITCHONOFF, &sw);
+			netsend(BRDctrl_BASEF_SWITCHONOFF,0,status);
 	}
 
 	status = BRD_release(hSrv, 0);
@@ -638,7 +640,8 @@ S32 SetParamSrv(BRD_Handle handle, BRD_ServList* srv, int idx)
 		//	RegProg(hADC, (g_lid != -1) ? g_lid : 0, g_AdcSrvNum);
 
 		ULONG format = 0;
-		BRD_ctrl(hADC, 0, BRDctrl_ADC_GETFORMAT, &format);
+		status = BRD_ctrl(hADC, 0, BRDctrl_ADC_GETFORMAT, &format);
+		netsend(BRDctrl_ADC_GETFORMAT,format,status);
 		ULONG sample_size = format ? format : sizeof(short);
 		if(format == 0x80) // упакованные 12-разрядные данные
 			sample_size = 2;
@@ -658,6 +661,7 @@ S32 SetParamSrv(BRD_Handle handle, BRD_ServList* srv, int idx)
 		SdramConfig.Size = sizeof(BRD_SdramCfgEx);
 		ULONG PhysMemSize;
 		status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_GETCFGEX, &SdramConfig);
+		netsend(BRDctrl_SDRAM_GETCFGEX,0,status);
 		if(status < 0)
 		{
 			if(g_MemOn)
@@ -704,6 +708,7 @@ S32 SetParamSrv(BRD_Handle handle, BRD_ServList* srv, int idx)
 			 // освободить службу SDRAM (она могла быть захвачена командой BRDctrl_SDRAM_GETCFG, если та отработала без ошибки)
 			ULONG mem_size = 0;
 			status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_SETMEMSIZE, &mem_size);
+			netsend(BRDctrl_SDRAM_SETMEMSIZE,mem_size,status);
 			if(g_MemOn)
 			{
 				BRDC_printf(_BRDC("No SDRAM on board!!!\n"));
@@ -732,10 +737,12 @@ S32 GetPretrigData(BRD_Handle hADC)
 	// получить момент срабатывания на событие старта в режиме претриггера
 	ULONG start_event;
 	status = BRD_ctrl(hADC, 0, BRDctrl_ADC_GETPRETRIGEVENT, &start_event);
+	netsend(BRDctrl_ADC_GETPRETRIGEVENT,0,status);
 	g_bStartEvent = start_event << 2; // запомнить в байтах
 	// уточнить момент срабатывания
 	ULONG prec_event;
 	status = BRD_ctrl(hADC, 0, BRDctrl_ADC_GETPREVENTPREC, &prec_event);
+	netsend(BRDctrl_ADC_GETPREVENTPREC,0,status);
 	ULONG bPrecEvent = prec_event << 1; // запомнить в байтах
 	g_bStartEvent += bPrecEvent * g_numChan;
 
@@ -749,18 +756,22 @@ S32 GetPostrigData(BRD_Handle hADC)
 	// получить момент срабатывания на событие старта в режиме претриггера
 	ULONG start_event;
 	status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_GETPRETRIGEVENT, &start_event);
+	netsend(BRDctrl_SDRAM_GETPRETRIGEVENT,0,status);
 	g_bStartEvent = start_event << 2; // запомнить в байтах
 	// уточнить момент срабатывания
 	ULONG prec_event;
 	status = BRD_ctrl(hADC, 0, BRDctrl_ADC_GETPREVENTPREC, &prec_event);
+	netsend(BRDctrl_ADC_GETPREVENTPREC,0,status);
 	ULONG bPrecEvent = prec_event << 1; // запомнить в байтах
 	g_bStartEvent += bPrecEvent * g_numChan;
 
 	// выяснить был ли переход через конец активной зоны
 	status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_ISPASSMEMEND, &g_isPassMemEnd);
+	netsend(BRDctrl_SDRAM_ISPASSMEMEND,0,status);
 	// получить реальное число собранных данных
 	ULONG acq_size;
 	status = BRD_ctrl(hADC, 0, BRDctrl_SDRAM_GETACQSIZE, &acq_size);
+	netsend(BRDctrl_SDRAM_GETACQSIZE,0,status);
 	g_bRealSize = acq_size << 2; // запомнить в байтах
 
 	return status;
@@ -772,6 +783,7 @@ S32 GetAdcData(BRD_Handle hADC, unsigned long long bBufSize, unsigned long long 
 	int idx = 0;
 
 	status = BRD_ctrl(hADC, 0, BRDctrl_ADC_PREPARESTART, NULL);
+	netsend(BRDctrl_ADC_PREPARESTART,0,status);
 	if( status < 0 )
 		if( !(BRD_errcmp( status, BRDerr_CMD_UNSUPPORTED ) 
 		   || BRD_errcmp( status, BRDerr_INSUFFICIENT_SERVICES )) )
@@ -814,10 +826,12 @@ S32 GetAdcData(BRD_Handle hADC, unsigned long long bBufSize, unsigned long long 
 
 		BRD_AdcCfg adc_cfg;
 		status = BRD_ctrl(hADC, 0, BRDctrl_ADC_GETCFG, &adc_cfg);
+		netsend(BRDctrl_ADC_GETCFG,0,status);
 		if(adc_cfg.FifoSize < bBufSize)
 		{
 			ULONG format = 0;
-			BRD_ctrl(hADC, 0, BRDctrl_ADC_GETFORMAT, &format);
+			status = BRD_ctrl(hADC, 0, BRDctrl_ADC_GETFORMAT, &format);
+			netsend(BRDctrl_ADC_GETFORMAT,format,status);
 			ULONG sample_size = format ? format : sizeof(short);
 			if(format == 0x80) // упакованные 12-разрядные данные
 				sample_size = 2;
@@ -999,6 +1013,7 @@ S32 GetAdcData(BRD_Handle hADC, unsigned long long bBufSize, unsigned long long 
 						{
 							status = AdcSettings(hADC, 0, g_AdcSrvNum, g_SrvName, g_iniFileName); // установить параметры АЦП
 							status = BRD_ctrl(hADC, 0, BRDctrl_ADC_PREPARESTART, NULL);
+							netsend(BRDctrl_ADC_PREPARESTART,0,status);
 							newParam_fl = 0xffffffff;
 						}
 // Hear doubled closing bracket } for correct code folding
