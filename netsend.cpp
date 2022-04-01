@@ -1,6 +1,7 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <netinet/in.h>
+#include <arpa/inet.h>
 #include <unistd.h>
 #include <stdio.h>
 #include "netsend.h"
@@ -31,8 +32,9 @@ int netsend(ULONG cmd, ULONG out, S32 status)
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(SNDPORT);
 //	addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK);
-	addr.sin_addr.s_addr = htonl(INADDR_ANY);
-//	addr.sin_addr.s_addr = inet_addr("172.30.255.255");
+//	addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	inet_aton("192.168.0.255", &addr.sin_addr);
+	//addr.sin_addr.s_addr = inet_addr("192.168.0.255");
 
 	std::string data;
 	GOOGLE_PROTOBUF_VERIFY_VERSION;
