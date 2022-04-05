@@ -3,6 +3,7 @@ from socket import socket, AF_INET, SOCK_DGRAM
 import signal
 
 if __name__ == '__main__':
+    signal.signal(signal.SIGINT, signal.SIG_DFL)
     sock = socket(AF_INET, SOCK_DGRAM)
     sock.bind(("0.0.0.0", 9009))
     ex = False
@@ -11,5 +12,5 @@ if __name__ == '__main__':
         pkt = Adc_msg()
         pkt.ParseFromString(data)
         print(f"cmd: {pkt.command}, out:{pkt.out}, status:{pkt.status}")
-        if pkt.command == 1:
+        if pkt.command == 11:
             ex = True

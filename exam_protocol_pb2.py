@@ -13,7 +13,7 @@ _sym_db = _symbol_database.Default()
 
 
 
-DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x13\x65xam_protocol.proto\x12\nexam_proto\"8\n\x08\x42RD_ctrl\x12\x0f\n\x07\x63ommand\x18\x01 \x01(\x07\x12\x0b\n\x03out\x18\x02 \x01(\x07\x12\x0e\n\x06status\x18\x03 \x01(\x0f\x42\x02H\x03')
+DESCRIPTOR = _descriptor_pool.Default().AddSerializedFile(b'\n\x13\x65xam_protocol.proto\x12\nexam_proto\"8\n\x08\x42RD_ctrl\x12\x0f\n\x07\x63ommand\x18\x01 \x02(\x07\x12\x0b\n\x03out\x18\x02 \x02(\x07\x12\x0e\n\x06status\x18\x03 \x02(\x0f\x42\x02H\x03')
 
 _builder.BuildMessageAndEnumDescriptors(DESCRIPTOR, globals())
 _builder.BuildTopDescriptorsAndMessages(DESCRIPTOR, 'exam_protocol_pb2', globals())

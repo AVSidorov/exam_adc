@@ -138,10 +138,10 @@ class BRD_ctrl final :
   const char* _InternalParse(const char* ptr, ::PROTOBUF_NAMESPACE_ID::internal::ParseContext* ctx) final;
   uint8_t* _InternalSerialize(
       uint8_t* target, ::PROTOBUF_NAMESPACE_ID::io::EpsCopyOutputStream* stream) const final;
-  int GetCachedSize() const final { return _cached_size_.Get(); }
+  int GetCachedSize() const final { return _impl_._cached_size_.Get(); }
 
   private:
-  void SharedCtor();
+  void SharedCtor(::PROTOBUF_NAMESPACE_ID::Arena* arena, bool is_message_owned);
   void SharedDtor();
   void SetCachedSize(int size) const;
   void InternalSwap(BRD_ctrl* other);
@@ -167,7 +167,7 @@ class BRD_ctrl final :
     kOutFieldNumber = 2,
     kStatusFieldNumber = 3,
   };
-  // optional fixed32 command = 1;
+  // required fixed32 command = 1;
   bool has_command() const;
   private:
   bool _internal_has_command() const;
@@ -180,7 +180,7 @@ class BRD_ctrl final :
   void _internal_set_command(uint32_t value);
   public:
 
-  // optional fixed32 out = 2;
+  // required fixed32 out = 2;
   bool has_out() const;
   private:
   bool _internal_has_out() const;
@@ -193,7 +193,7 @@ class BRD_ctrl final :
   void _internal_set_out(uint32_t value);
   public:
 
-  // optional sfixed32 status = 3;
+  // required sfixed32 status = 3;
   bool has_status() const;
   private:
   bool _internal_has_status() const;
@@ -210,14 +210,20 @@ class BRD_ctrl final :
  private:
   class _Internal;
 
+  // helper for ByteSizeLong()
+  size_t RequiredFieldsByteSizeFallback() const;
+
   template <typename T> friend class ::PROTOBUF_NAMESPACE_ID::Arena::InternalHelper;
   typedef void InternalArenaConstructable_;
   typedef void DestructorSkippable_;
-  ::PROTOBUF_NAMESPACE_ID::internal::HasBits<1> _has_bits_;
-  mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
-  uint32_t command_;
-  uint32_t out_;
-  int32_t status_;
+  struct Impl_ {
+    ::PROTOBUF_NAMESPACE_ID::internal::HasBits<1> _has_bits_;
+    mutable ::PROTOBUF_NAMESPACE_ID::internal::CachedSize _cached_size_;
+    uint32_t command_;
+    uint32_t out_;
+    int32_t status_;
+  };
+  union { Impl_ _impl_; };
   friend struct ::TableStruct_exam_5fprotocol_2eproto;
 };
 // ===================================================================
@@ -231,84 +237,84 @@ class BRD_ctrl final :
 #endif  // __GNUC__
 // BRD_ctrl
 
-// optional fixed32 command = 1;
+// required fixed32 command = 1;
 inline bool BRD_ctrl::_internal_has_command() const {
-  bool value = (_has_bits_[0] & 0x00000001u) != 0;
+  bool value = (_impl_._has_bits_[0] & 0x00000001u) != 0;
   return value;
 }
 inline bool BRD_ctrl::has_command() const {
   return _internal_has_command();
 }
 inline void BRD_ctrl::clear_command() {
-  command_ = 0u;
-  _has_bits_[0] &= ~0x00000001u;
+  _impl_.command_ = 0u;
+  _impl_._has_bits_[0] &= ~0x00000001u;
 }
 inline uint32_t BRD_ctrl::_internal_command() const {
-  return command_;
+  return _impl_.command_;
 }
 inline uint32_t BRD_ctrl::command() const {
   // @@protoc_insertion_point(field_get:exam_proto.BRD_ctrl.command)
   return _internal_command();
 }
 inline void BRD_ctrl::_internal_set_command(uint32_t value) {
-  _has_bits_[0] |= 0x00000001u;
-  command_ = value;
+  _impl_._has_bits_[0] |= 0x00000001u;
+  _impl_.command_ = value;
 }
 inline void BRD_ctrl::set_command(uint32_t value) {
   _internal_set_command(value);
   // @@protoc_insertion_point(field_set:exam_proto.BRD_ctrl.command)
 }
 
-// optional fixed32 out = 2;
+// required fixed32 out = 2;
 inline bool BRD_ctrl::_internal_has_out() const {
-  bool value = (_has_bits_[0] & 0x00000002u) != 0;
+  bool value = (_impl_._has_bits_[0] & 0x00000002u) != 0;
   return value;
 }
 inline bool BRD_ctrl::has_out() const {
   return _internal_has_out();
 }
 inline void BRD_ctrl::clear_out() {
-  out_ = 0u;
-  _has_bits_[0] &= ~0x00000002u;
+  _impl_.out_ = 0u;
+  _impl_._has_bits_[0] &= ~0x00000002u;
 }
 inline uint32_t BRD_ctrl::_internal_out() const {
-  return out_;
+  return _impl_.out_;
 }
 inline uint32_t BRD_ctrl::out() const {
   // @@protoc_insertion_point(field_get:exam_proto.BRD_ctrl.out)
   return _internal_out();
 }
 inline void BRD_ctrl::_internal_set_out(uint32_t value) {
-  _has_bits_[0] |= 0x00000002u;
-  out_ = value;
+  _impl_._has_bits_[0] |= 0x00000002u;
+  _impl_.out_ = value;
 }
 inline void BRD_ctrl::set_out(uint32_t value) {
   _internal_set_out(value);
   // @@protoc_insertion_point(field_set:exam_proto.BRD_ctrl.out)
 }
 
-// optional sfixed32 status = 3;
+// required sfixed32 status = 3;
 inline bool BRD_ctrl::_internal_has_status() const {
-  bool value = (_has_bits_[0] & 0x00000004u) != 0;
+  bool value = (_impl_._has_bits_[0] & 0x00000004u) != 0;
   return value;
 }
 inline bool BRD_ctrl::has_status() const {
   return _internal_has_status();
 }
 inline void BRD_ctrl::clear_status() {
-  status_ = 0;
-  _has_bits_[0] &= ~0x00000004u;
+  _impl_.status_ = 0;
+  _impl_._has_bits_[0] &= ~0x00000004u;
 }
 inline int32_t BRD_ctrl::_internal_status() const {
-  return status_;
+  return _impl_.status_;
 }
 inline int32_t BRD_ctrl::status() const {
   // @@protoc_insertion_point(field_get:exam_proto.BRD_ctrl.status)
   return _internal_status();
 }
 inline void BRD_ctrl::_internal_set_status(int32_t value) {
-  _has_bits_[0] |= 0x00000004u;
-  status_ = value;
+  _impl_._has_bits_[0] |= 0x00000004u;
+  _impl_.status_ = value;
 }
 inline void BRD_ctrl::set_status(int32_t value) {
   _internal_set_status(value);

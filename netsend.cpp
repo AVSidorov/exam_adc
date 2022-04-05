@@ -36,18 +36,20 @@ int netsend(ULONG cmd, ULONG out, S32 status)
 	inet_aton("192.168.0.255", &addr.sin_addr);
 	//addr.sin_addr.s_addr = inet_addr("192.168.0.255");
 
-	std::string data;
 	GOOGLE_PROTOBUF_VERIFY_VERSION;
 	exam_proto::BRD_ctrl pkt;
 
 	pkt.set_command(cmd);
 	pkt.set_out(out);
 	pkt.set_status(status);
-	pkt.SerializeToString(&data);
-
-	sendto(sock, (char *)data.c_str(), sizeof(data), 0,
+	if(pkt.IsInitialized())
+	{
+		int pktSize = pkt.ByteSizeLong();
+		char data[pktSize];
+		pkt.SerializeToArray(data, pktSize);
+		sendto(sock, data, sizeof(data), 0,
 		   (struct sockaddr *)&addr, sizeof(addr));
-
+	}
 	close(sock);
 	google::protobuf::ShutdownProtobufLibrary();
 	return 0;

@@ -19,10 +19,12 @@ namespace _pbi = _pb::internal;
 
 namespace exam_proto {
 PROTOBUF_CONSTEXPR BRD_ctrl::BRD_ctrl(
-    ::_pbi::ConstantInitialized)
-  : command_(0u)
-  , out_(0u)
-  , status_(0){}
+    ::_pbi::ConstantInitialized): _impl_{
+    /*decltype(_impl_._has_bits_)*/{}
+  , /*decltype(_impl_._cached_size_)*/{}
+  , /*decltype(_impl_.command_)*/0u
+  , /*decltype(_impl_.out_)*/0u
+  , /*decltype(_impl_.status_)*/0} {}
 struct BRD_ctrlDefaultTypeInternal {
   PROTOBUF_CONSTEXPR BRD_ctrlDefaultTypeInternal()
       : _instance(::_pbi::ConstantInitialized{}) {}
@@ -39,7 +41,7 @@ namespace exam_proto {
 
 class BRD_ctrl::_Internal {
  public:
-  using HasBits = decltype(std::declval<BRD_ctrl>()._has_bits_);
+  using HasBits = decltype(std::declval<BRD_ctrl>()._impl_._has_bits_);
   static void set_has_command(HasBits* has_bits) {
     (*has_bits)[0] |= 1u;
   }
@@ -49,29 +51,44 @@ class BRD_ctrl::_Internal {
   static void set_has_status(HasBits* has_bits) {
     (*has_bits)[0] |= 4u;
   }
+  static bool MissingRequiredFields(const HasBits& has_bits) {
+    return ((has_bits[0] & 0x00000007) ^ 0x00000007) != 0;
+  }
 };
 
 BRD_ctrl::BRD_ctrl(::PROTOBUF_NAMESPACE_ID::Arena* arena,
                          bool is_message_owned)
   : ::PROTOBUF_NAMESPACE_ID::MessageLite(arena, is_message_owned) {
-  SharedCtor();
+  SharedCtor(arena, is_message_owned);
   // @@protoc_insertion_point(arena_constructor:exam_proto.BRD_ctrl)
 }
 BRD_ctrl::BRD_ctrl(const BRD_ctrl& from)
-  : ::PROTOBUF_NAMESPACE_ID::MessageLite(),
-      _has_bits_(from._has_bits_) {
+  : ::PROTOBUF_NAMESPACE_ID::MessageLite() {
+  new (&_impl_) Impl_{
+      decltype(_impl_._has_bits_){from._impl_._has_bits_}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.command_){}
+    , decltype(_impl_.out_){}
+    , decltype(_impl_.status_){}};
+
   _internal_metadata_.MergeFrom<std::string>(from._internal_metadata_);
-  ::memcpy(&command_, &from.command_,
-    static_cast<size_t>(reinterpret_cast<char*>(&status_) -
-    reinterpret_cast<char*>(&command_)) + sizeof(status_));
+  ::memcpy(&_impl_.command_, &from._impl_.command_,
+    static_cast<size_t>(reinterpret_cast<char*>(&_impl_.status_) -
+    reinterpret_cast<char*>(&_impl_.command_)) + sizeof(_impl_.status_));
   // @@protoc_insertion_point(copy_constructor:exam_proto.BRD_ctrl)
 }
 
-inline void BRD_ctrl::SharedCtor() {
-::memset(reinterpret_cast<char*>(this) + static_cast<size_t>(
-    reinterpret_cast<char*>(&command_) - reinterpret_cast<char*>(this)),
-    0, static_cast<size_t>(reinterpret_cast<char*>(&status_) -
-    reinterpret_cast<char*>(&command_)) + sizeof(status_));
+inline void BRD_ctrl::SharedCtor(
+    ::_pb::Arena* arena, bool is_message_owned) {
+  (void)arena;
+  (void)is_message_owned;
+  new (&_impl_) Impl_{
+      decltype(_impl_._has_bits_){}
+    , /*decltype(_impl_._cached_size_)*/{}
+    , decltype(_impl_.command_){0u}
+    , decltype(_impl_.out_){0u}
+    , decltype(_impl_.status_){0}
+  };
 }
 
 BRD_ctrl::~BRD_ctrl() {
@@ -88,7 +105,7 @@ inline void BRD_ctrl::SharedDtor() {
 }
 
 void BRD_ctrl::SetCachedSize(int size) const {
-  _cached_size_.Set(size);
+  _impl_._cached_size_.Set(size);
 }
 
 void BRD_ctrl::Clear() {
@@ -97,13 +114,13 @@ void BRD_ctrl::Clear() {
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  cached_has_bits = _has_bits_[0];
+  cached_has_bits = _impl_._has_bits_[0];
   if (cached_has_bits & 0x00000007u) {
-    ::memset(&command_, 0, static_cast<size_t>(
-        reinterpret_cast<char*>(&status_) -
-        reinterpret_cast<char*>(&command_)) + sizeof(status_));
+    ::memset(&_impl_.command_, 0, static_cast<size_t>(
+        reinterpret_cast<char*>(&_impl_.status_) -
+        reinterpret_cast<char*>(&_impl_.command_)) + sizeof(_impl_.status_));
   }
-  _has_bits_.Clear();
+  _impl_._has_bits_.Clear();
   _internal_metadata_.Clear<std::string>();
 }
 
@@ -114,29 +131,29 @@ const char* BRD_ctrl::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx)
     uint32_t tag;
     ptr = ::_pbi::ReadTag(ptr, &tag);
     switch (tag >> 3) {
-      // optional fixed32 command = 1;
+      // required fixed32 command = 1;
       case 1:
         if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 13)) {
           _Internal::set_has_command(&has_bits);
-          command_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<uint32_t>(ptr);
+          _impl_.command_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<uint32_t>(ptr);
           ptr += sizeof(uint32_t);
         } else
           goto handle_unusual;
         continue;
-      // optional fixed32 out = 2;
+      // required fixed32 out = 2;
       case 2:
         if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 21)) {
           _Internal::set_has_out(&has_bits);
-          out_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<uint32_t>(ptr);
+          _impl_.out_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<uint32_t>(ptr);
           ptr += sizeof(uint32_t);
         } else
           goto handle_unusual;
         continue;
-      // optional sfixed32 status = 3;
+      // required sfixed32 status = 3;
       case 3:
         if (PROTOBUF_PREDICT_TRUE(static_cast<uint8_t>(tag) == 29)) {
           _Internal::set_has_status(&has_bits);
-          status_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<int32_t>(ptr);
+          _impl_.status_ = ::PROTOBUF_NAMESPACE_ID::internal::UnalignedLoad<int32_t>(ptr);
           ptr += sizeof(int32_t);
         } else
           goto handle_unusual;
@@ -157,7 +174,7 @@ const char* BRD_ctrl::_InternalParse(const char* ptr, ::_pbi::ParseContext* ctx)
     CHK_(ptr != nullptr);
   }  // while
 message_done:
-  _has_bits_.Or(has_bits);
+  _impl_._has_bits_.Or(has_bits);
   return ptr;
 failure:
   ptr = nullptr;
@@ -171,20 +188,20 @@ uint8_t* BRD_ctrl::_InternalSerialize(
   uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
-  cached_has_bits = _has_bits_[0];
-  // optional fixed32 command = 1;
+  cached_has_bits = _impl_._has_bits_[0];
+  // required fixed32 command = 1;
   if (cached_has_bits & 0x00000001u) {
     target = stream->EnsureSpace(target);
     target = ::_pbi::WireFormatLite::WriteFixed32ToArray(1, this->_internal_command(), target);
   }
 
-  // optional fixed32 out = 2;
+  // required fixed32 out = 2;
   if (cached_has_bits & 0x00000002u) {
     target = stream->EnsureSpace(target);
     target = ::_pbi::WireFormatLite::WriteFixed32ToArray(2, this->_internal_out(), target);
   }
 
-  // optional sfixed32 status = 3;
+  // required sfixed32 status = 3;
   if (cached_has_bits & 0x00000004u) {
     target = stream->EnsureSpace(target);
     target = ::_pbi::WireFormatLite::WriteSFixed32ToArray(3, this->_internal_status(), target);
@@ -198,32 +215,48 @@ uint8_t* BRD_ctrl::_InternalSerialize(
   return target;
 }
 
+size_t BRD_ctrl::RequiredFieldsByteSizeFallback() const {
+// @@protoc_insertion_point(required_fields_byte_size_fallback_start:exam_proto.BRD_ctrl)
+  size_t total_size = 0;
+
+  if (_internal_has_command()) {
+    // required fixed32 command = 1;
+    total_size += 1 + 4;
+  }
+
+  if (_internal_has_out()) {
+    // required fixed32 out = 2;
+    total_size += 1 + 4;
+  }
+
+  if (_internal_has_status()) {
+    // required sfixed32 status = 3;
+    total_size += 1 + 4;
+  }
+
+  return total_size;
+}
 size_t BRD_ctrl::ByteSizeLong() const {
 // @@protoc_insertion_point(message_byte_size_start:exam_proto.BRD_ctrl)
   size_t total_size = 0;
 
+  if (((_impl_._has_bits_[0] & 0x00000007) ^ 0x00000007) == 0) {  // All required fields are present.
+    // required fixed32 command = 1;
+    total_size += 1 + 4;
+
+    // required fixed32 out = 2;
+    total_size += 1 + 4;
+
+    // required sfixed32 status = 3;
+    total_size += 1 + 4;
+
+  } else {
+    total_size += RequiredFieldsByteSizeFallback();
+  }
   uint32_t cached_has_bits = 0;
   // Prevent compiler warnings about cached_has_bits being unused
   (void) cached_has_bits;
 
-  cached_has_bits = _has_bits_[0];
-  if (cached_has_bits & 0x00000007u) {
-    // optional fixed32 command = 1;
-    if (cached_has_bits & 0x00000001u) {
-      total_size += 1 + 4;
-    }
-
-    // optional fixed32 out = 2;
-    if (cached_has_bits & 0x00000002u) {
-      total_size += 1 + 4;
-    }
-
-    // optional sfixed32 status = 3;
-    if (cached_has_bits & 0x00000004u) {
-      total_size += 1 + 4;
-    }
-
-  }
   if (PROTOBUF_PREDICT_FALSE(_internal_metadata_.have_unknown_fields())) {
     total_size += _internal_metadata_.unknown_fields<std::string>(::PROTOBUF_NAMESPACE_ID::internal::GetEmptyString).size();
   }
@@ -244,18 +277,18 @@ void BRD_ctrl::MergeFrom(const BRD_ctrl& from) {
   uint32_t cached_has_bits = 0;
   (void) cached_has_bits;
 
-  cached_has_bits = from._has_bits_[0];
+  cached_has_bits = from._impl_._has_bits_[0];
   if (cached_has_bits & 0x00000007u) {
     if (cached_has_bits & 0x00000001u) {
-      command_ = from.command_;
+      _impl_.command_ = from._impl_.command_;
     }
     if (cached_has_bits & 0x00000002u) {
-      out_ = from.out_;
+      _impl_.out_ = from._impl_.out_;
     }
     if (cached_has_bits & 0x00000004u) {
-      status_ = from.status_;
+      _impl_.status_ = from._impl_.status_;
     }
-    _has_bits_[0] |= cached_has_bits;
+    _impl_._has_bits_[0] |= cached_has_bits;
   }
   _internal_metadata_.MergeFrom<std::string>(from._internal_metadata_);
 }
@@ -268,19 +301,20 @@ void BRD_ctrl::CopyFrom(const BRD_ctrl& from) {
 }
 
 bool BRD_ctrl::IsInitialized() const {
+  if (_Internal::MissingRequiredFields(_impl_._has_bits_)) return false;
   return true;
 }
 
 void BRD_ctrl::InternalSwap(BRD_ctrl* other) {
   using std::swap;
   _internal_metadata_.InternalSwap(&other->_internal_metadata_);
-  swap(_has_bits_[0], other->_has_bits_[0]);
+  swap(_impl_._has_bits_[0], other->_impl_._has_bits_[0]);
   ::PROTOBUF_NAMESPACE_ID::internal::memswap<
-      PROTOBUF_FIELD_OFFSET(BRD_ctrl, status_)
-      + sizeof(BRD_ctrl::status_)
-      - PROTOBUF_FIELD_OFFSET(BRD_ctrl, command_)>(
-          reinterpret_cast<char*>(&command_),
-          reinterpret_cast<char*>(&other->command_));
+      PROTOBUF_FIELD_OFFSET(BRD_ctrl, _impl_.status_)
+      + sizeof(BRD_ctrl::_impl_.status_)
+      - PROTOBUF_FIELD_OFFSET(BRD_ctrl, _impl_.command_)>(
+          reinterpret_cast<char*>(&_impl_.command_),
+          reinterpret_cast<char*>(&other->_impl_.command_));
 }
 
 std::string BRD_ctrl::GetTypeName() const {

@@ -19,13 +19,19 @@ project(exam_adc)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/out/${CMAKE_BUILD_TYPE}/bin)
 #set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/${CMAKE_BUILD_TYPE}/${CMAKE_SYSTEM_NAME}/${CMAKE_SYSTEM_PROCESSOR}/bin)
 
-add_compile_definitions(__IPC_LINUX__)
+
 
 find_package(Protobuf REQUIRED)
 
 include_directories(${Protobuf_INCLUDE_DIRS})
 include_directories(${CMAKE_CURRENT_BINARY_DIR})
 include_directories(${SOURCE_DIR})
+
+
+if(${CMAKE_SYSTEM_NAME} STREQUAL "Linux")
+
+add_compile_definitions(__IPC_LINUX__)
+
 
 set(SOURCE_FILES exam_adc.cpp
 		 adc_ctrl.cpp
@@ -78,3 +84,11 @@ target_link_libraries(${PROJECT_NAME} PRIVATE libbrd
 											  Threads::Threads
 											  ${Protobuf_LIBRARIES})
 
+endif()
+
+set(SOURCE_FILES send.cpp exam_protocol.pb.cc)
+
+set(HEADERS exam_protocol.pb.h)
+
+add_executable(send  ${SOURCE_FILES} ${HEADERS})
+	target_link_libraries(send PRIVATE ${Protobuf_LIBRARIES})
