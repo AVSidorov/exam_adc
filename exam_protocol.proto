@@ -5,8 +5,8 @@ option optimize_for = LITE_RUNTIME;
 package exam_proto;
 
 message BRD_ctrl{
-  optional fixed32 command = 1;
-  optional fixed32 out = 2;
-  optional sfixed32 status = 3;
+  required fixed32 command = 1;
+  required fixed32 out = 2;
+  required sfixed32 status = 3;
 }
 

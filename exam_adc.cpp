@@ -165,7 +165,7 @@ int BRDC_main( int argc, BRDCHAR *argv[] )
 		return -1;
 	}
 
-    BRDC_printf( _BRDC("Sid edition.\n\n"));
+    BRDC_printf( _BRDC("Sid edition net 0.1.\n\n"));
 
 	// получить список LID (каждая запись соответствует устройству)
 	BRD_LidList lidList;
