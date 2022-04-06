@@ -165,7 +165,7 @@ int BRDC_main( int argc, BRDCHAR *argv[] )
 		return -1;
 	}
 
-    BRDC_printf( _BRDC("Sid edition net 0.1.\n\n"));
+    BRDC_printf( _BRDC("Sid edition net 0.2.\n\n"));
 
 	// получить список LID (каждая запись соответствует устройству)
 	BRD_LidList lidList;
@@ -809,7 +809,7 @@ S32 GetAdcData(BRD_Handle hADC, unsigned long long bBufSize, unsigned long long 
 	    BRDC_printf(_BRDC("bufSize before  allocation %llu\n"), bBufSize);
 		status = AllocDaqBuf(hADC, pSig, &bBufSize, g_IsSysMem, &g_bBlkNum);
 
-        BRDC_printf(_BRDC("set bufSize %llu after allocation %llu blocks\n"), bBufSize, g_bBlkNum);
+        BRDC_printf(_BRDC("set bufSize %llu kBytes after allocation %lu blocks\n"), bBufSize/1024, g_bBlkNum);
 		if(!BRD_errcmp(status, BRDerr_OK))
 			return status;
 		if(!pSig)
@@ -1075,6 +1075,8 @@ S32 GetAdcData(BRD_Handle hADC, unsigned long long bBufSize, unsigned long long 
 //S32	DataFromMemWriteFile(BRD_Handle hADC, PVOID pBuf, unsigned long long bBufSize, unsigned long long bMemBufSize, ULONG DmaOn)
 S32	DataFromMemWriteFile(BRD_Handle hADC, PVOID* pBuf, unsigned long long bBufSize, unsigned long long bMemBufSize, ULONG DmaOn)
 {
+BRDC_printf(_BRDC("Buf size is %llu\n"), bBufSize);
+BRDC_printf(_BRDC("Full SDRAM size is %llu\n"), bMemBufSize);
 #ifdef __linux__
     if(g_fileMap)
         return MapDataFromMemWriteData(hADC, pBuf, bBufSize, bMemBufSize, DmaOn);
@@ -1104,10 +1106,11 @@ S32	DataFromMemWriteFile(BRD_Handle hADC, PVOID* pBuf, unsigned long long bBufSi
 	int bResult = TRUE;
 
 	
-	for(int iCnt = 0; iCnt < g_bBlkNum; iCnt++)
+	int nStep = (bMemBufSize / bBufSize) * g_bBlkNum;
+	for(int iCnt = 0; iCnt < nStep; iCnt++)
 	{
-		BRDC_printf(_BRDC("step %i from %i\n"), iCnt+1,g_bBlkNum);
-		BRDC_printf(_BRDC("Get from 0x%X %lu bytes\n"),pBuf,bBufSize);
+		BRDC_printf(_BRDC("step %i from %i\n"), iCnt+1, nStep);
+		BRDC_printf(_BRDC("Get from 0x%X %llu bytes\n"),pBuf,bBufSize);
 		status = DataFromMem(hADC, *pBuf, (ULONG)bBufSize, DmaOn);
 		if (!BRD_errcmp(status, BRDerr_OK))
 			return status;
@@ -1116,6 +1119,7 @@ S32	DataFromMemWriteFile(BRD_Handle hADC, PVOID* pBuf, unsigned long long bBufSi
 	ULONG ostSize = ULONG(bMemBufSize % bBufSize);
 	if(ostSize)
 	{
+		BRDC_printf(_BRDC("ostSize is %lu\n"), ostSize);
 		status = DataFromMem(hADC, *pBuf, (ULONG)bBufSize, DmaOn);
 		bResult = IPC_writeFile(hfile, *pBuf, ostSize);
 	}
